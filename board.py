@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from vectormath import *
+from vectormath import *
 
 class Board(tk.Canvas):
     def __init__(self, master, width=8,height=8,tile=50) -> None:
