@@ -12,7 +12,7 @@ class Board(tk.Canvas):
         self.tilesize=tile
         self.colour=["#000000","#FFFFFF"]
         self.highlights=["#FFA500","#FFED00"]
-        super().__init__(master,height=(height+1)*tile,width=(width+1)*tile)
+        super().__init__(master,height=(height)*tile,width=(width)*tile)
         self.bind("<Button-1>",self.drag_start)
         self.bind("<B1-Motion>",self.drag_motion)
         self.bind("<ButtonRelease-1>",self.drag_stop)
@@ -20,7 +20,7 @@ class Board(tk.Canvas):
         self.data=[]
         self.teamcolours=["#00FF00","#FF0000","#0000FF"]
         self.tiles=[]
-        self.rotation=3
+        self.rotation=0
         for x in range(width):
             self.data.append([])
             for _ in range(height):
@@ -43,7 +43,7 @@ class Board(tk.Canvas):
         self.data[0][0]=Knife(self,tile,0,0,team=2)
         for x in range(width):
             self.data[x][1]=Pawn(self,tile,x,1,direction=0,team=1)
-        self.data[2][2]=Rook(self,tile,2,2,0)
+        self.data[2][2]=Rook(self,tile,2,2,2)
         self.data[3][3]=Queen(self,tile,3,3,2)
         self.draggable=None 
         self.movehighlight=[]       
@@ -51,6 +51,9 @@ class Board(tk.Canvas):
         
         pass
     
+    def addpiece(self,name,x,y,*args,**kwargs):
+
+
     def localrotate(self,rotation,x,y,inv=False):
         key=vector(1,1)
         v=vector(x,y)
