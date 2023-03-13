@@ -1,26 +1,28 @@
 import tkinter as tk
 from tkinter import ttk
-from vectormath import *
-from vectormath import *
-
+from Chess.vectormath import *
 class Board(tk.Canvas):
     def __init__(self, master, width=8,height=8,tile=50) -> None:
-        self.width=width
-        self.height=height
+        self.WIDTH=width
+        self.HEIGHT=height
         self.peiceauth=[0,1,2]
         self.teamturn=[0,1,2]
-        self.tilesize=tile
-        self.colour=["#000000","#FFFFFF"]
-        self.highlights=["#FFA500","#FFED00"]
+        self.TILESIZE=tile
+        self.colour=["#191825","#865DFF"]
+        self.highlights=["#E384FF","#FFA3FD"]
         super().__init__(master,height=(height)*tile,width=(width)*tile)
         self.bind("<Button-1>",self.drag_start)
         self.bind("<B1-Motion>",self.drag_motion)
         self.bind("<ButtonRelease-1>",self.drag_stop)
-        self.framelayer=self.create_window(0,0)
         self.data=[]
-        self.teamcolours=["#00FF00","#FF0000","#0000FF"]
+        self.teamcolours=["#FF0000","#0000FF"]
         self.tiles=[]
-        self.rotation=0
+        self.teamdata={"kings":[],"checks":[],"teams":[]}
+        for i in range(len(self.teamcolours)):
+            self.teamdata["teams"].append(i)
+            self.teamdata["kings"].append([])
+            self.teamdata["checks"].append(False)
+        self.ROTATION=0
         for x in range(width):
             self.data.append([])
             for _ in range(height):
@@ -28,31 +30,36 @@ class Board(tk.Canvas):
         for x in range(0,width):
             self.tiles.append([])
             for y in range(0,height):
-                px,py=self.localrotate(self.rotation,x,
+                px,py=self.localrotate(self.ROTATION,x,
                                                  y)
                 scaledx=px*tile
                 scaledy=py*tile
-                if x==7:
-                    print(px)
                 colour=self.colour[(x+y)%len(self.colour)]
 
 
                 rect=self.create_rectangle(scaledx,scaledy,scaledx+tile,scaledy+tile,fill=colour,outline="")
-                rect=self.create_rectangle(scaledx,scaledy,scaledx+tile,scaledy+tile,fill=colour,outline="")
                 self.tiles[x].append(rect)
-        self.data[0][0]=Knife(self,tile,0,0,team=2)
+        self.data[5][0]=King(self,tile,5,0,team=1)
+        self.data[0][0]=Knife(self,tile,0,0,team=0)
         for x in range(width):
             self.data[x][1]=Pawn(self,tile,x,1,direction=0,team=1)
-        self.data[2][2]=Rook(self,tile,2,2,2)
-        self.data[3][3]=Queen(self,tile,3,3,2)
+        self.data[2][2]=Rook(self,tile,2,2,0)
+        self.data[3][3]=Queen(self,tile,3,3,0)
         self.draggable=None 
         self.movehighlight=[]       
         self.propogateMove()
-        
+        self.PIECES={
+            "pawn":Pawn,
+            "knight":Knife,
+            "queen":Queen,
+            "bishop":Bishop,
+            "rook":Rook
+        }
+        pass
+    def addpiece(self,name,x,y,**kwargs):
         pass
     
-    def addpiece(self,name,x,y,*args,**kwargs):
-
+    
 
     def localrotate(self,rotation,x,y,inv=False):
         key=vector(1,1)
@@ -66,9 +73,9 @@ class Board(tk.Canvas):
 
 
         if x<=0 and key.x<0:
-            x=((self.width-1))+x
+            x=((self.WIDTH-1))+x
         if y<=0 and key.y<0:
-            y=((self.height-1))+y
+            y=((self.HEIGHT-1))+y
         return x,y
     def removehighlight(self,highlight,tiles=[]):
         if not tiles:
@@ -83,18 +90,27 @@ class Board(tk.Canvas):
                 self.itemconfigure(self.tiles[int(pos.x)][int(pos.y)],fill=fill)
             highlight.append(pos)
 
-    def propogateMove(self):
-        for ystrip in self.data:
-            for Peice in ystrip:
-                if not Peice:
+    def propogateMove(self,data=None,teams=None,teaminv=False):
+        if not teams:
+            teams=self.teamdata["teams"]
+        elif teaminv:
+            teams=[ateam for ateam in self.teamdata["teams"] if ateam not in teams]
+        if not data:
+            data=self.data
+        moves=[]
+        for ystrip in data:
+            for tile in ystrip:
+                if not tile:
                     continue
-                else:
-                    Peice.updateMoves()
+                if tile.team not in teams:
+                    continue
+                moves+= tile.updateMoves(data)
+        return moves
 
     def placepiece(self,image,x,y,Piece):
-        x,y=self.localrotate(self.rotation,x,y)
-        xpos=x*self.tilesize
-        ypos=y*self.tilesize
+        x,y=self.localrotate(self.ROTATION,x,y)
+        xpos=x*self.TILESIZE
+        ypos=y*self.TILESIZE
         
         xpos-=self.coords(image)[0]
         ypos-=self.coords(image)[1]
@@ -110,14 +126,14 @@ class Board(tk.Canvas):
             return False
         if team not in self.teamturn:
             return False
-        if not 0<=x<self.width:
+        if not 0<=x<self.WIDTH:
             return False
-        if not 0<=y<self.height:
+        if not 0<=y<self.HEIGHT:
             return False
         return True
     def drag_stop(self,event):
         widget = self.draggable
-        size=self.tilesize
+        size=self.TILESIZE
         if not self.draggable:
             return
         x = (self.coords(widget.image)[0]+size//2)
@@ -130,16 +146,16 @@ class Board(tk.Canvas):
         y/=size
         y=int(y)
         x=int(x)
-        x,y=self.localrotate(self.rotation,x,y,True)
+        x,y=self.localrotate(self.ROTATION,x,y,True)
         widget.move(x,y)
         self.draggable=None
         self.removehighlight(self.movehighlight)
         self.propogateMove()
     def drag_start(self,event):
-        tilex=event.x//self.tilesize
-        tiley=event.y//self.tilesize
-        tilex,tiley=self.localrotate(self.rotation,tilex,tiley,True)
-        if 0<=tilex<self.width and 0<=tiley<self.height:
+        tilex=event.x//self.TILESIZE
+        tiley=event.y//self.TILESIZE
+        tilex,tiley=self.localrotate(self.ROTATION,tilex,tiley,True)
+        if 0<=tilex<self.WIDTH and 0<=tiley<self.HEIGHT:
             if not self.data[tilex][tiley]:
                 return
             self.draggable=self.data[tilex][tiley]
@@ -151,8 +167,8 @@ class Board(tk.Canvas):
         if not self.draggable:
             return
         widget = self.draggable
-        x = event.x - self.tilesize//2
-        y = event.y - self.tilesize//2
+        x = event.x - self.TILESIZE//2
+        y = event.y - self.TILESIZE//2
         image=widget.image
         xpos=x-self.coords(image)[0]
         ypos=y-self.coords(image)[1]
@@ -161,13 +177,22 @@ class Board(tk.Canvas):
             ypos+=widget.offset[1]
         self.move(image,xpos,ypos)
 
+    def makecopy(self):
+        copy=[]
+        for n,ystrip in enumerate(self.data):
+            copy.append([])
+            for tile in ystrip:
+
+                copy[n].append(tile)
+        return copy
+
 class Piece():
     def __init__(self,board:Board,size,points,x=0,y=0,team=0):
         self.board=board
         self.position=vector(x,y)
         self.availmoves=[]
         self.availtakes=[]
-        self.tilesize=size
+        self.TILESIZE=size
         self.team=team
         self.image=board.create_polygon(*points,fill=board.teamcolours[team])
         self.returnpiece()
@@ -210,9 +235,12 @@ class Piece():
         elif action=="return":
             self.returnpiece()
 
+    def delete(self):
+        self.board.delete(self.image)
+        self.board.data[int(self.position.x)][int(self.position.y)]
+
     def takepiece(self,x,y):
-        img=self.board.data[x][y].image
-        self.board.delete(img)
+        self.board.data[x][y].delete()
         self.movepiece(x,y)
 
     def returnpiece(self):
@@ -225,8 +253,30 @@ class Piece():
         self.board.data[x][y]=self
         self.position=vector(x,y)
         self.board.data[int(pos.x)][int(pos.y)]=None
-    def updateMoves(self):
-        pass
+    def updateMoves(self,boarddata,availmoves,availtakes):
+        if boarddata==self.board.data:
+            self.availmoves=self.checkcheck(availmoves)
+            self.availtakes=self.checkcheck(availtakes)
+        return availmoves+availtakes
+    def checkcheck(self,moves):
+        data=self.board.makecopy()
+        x=int(self.position.x)
+        y=int(self.position.y)
+        data[x][y]=None
+        safemoves=[]
+        for move in moves:
+            data[int(move.x)][int(move.y)]=self
+            possiblemoves=self.board.propogateMove(data,teams=[self.team],teaminv=True)
+            unsafe=False
+            for king in self.board.teamdata["kings"][self.team]:
+                if king.position in possiblemoves:
+                    unsafe=True
+                    break
+            if not unsafe:
+                safemoves.append(move)
+            data[int(move.x)][int(move.y)]=None
+        return safemoves
+
 
 class Pawn(Piece):
     def __init__(self, board: Board, size, x=0, y=0,direction=0,team=0) -> None:
@@ -243,27 +293,26 @@ class Pawn(Piece):
             (ax+size*4/10,ay+size*4/10),(ax+size*4/10,ay+size/10)    
                 ]
         super().__init__(board, size, points, x, y,team)
-    def updateMoves(self):
-        self.availmoves=[]
-        self.availtakes=[] 
+    def updateMoves(self,boarddata):
+        availmoves=[]
+        availtakes=[] 
         for move in self.startmove+self.moves:
             move+=self.position
             if not self.board.validatemove(move.x,move.y,self.team):
                 continue
-            if self.board.data[int(move.x)][int(move.y)]:
+            if boarddata[int(move.x)][int(move.y)]:
                 continue
-            self.availmoves.append(move)
+            availmoves.append(move)
         for take in self.takes:
             take+=self.position
             if not self.board.validatemove(take.x,take.y,self.team):
                 continue
-            if not self.board.data[int(take.x)][int(take.y)]:
+            if not boarddata[int(take.x)][int(take.y)]:
                 continue
-            if self.board.data[int(take.x)][int(take.y)].team==self.team:
+            if boarddata[int(take.x)][int(take.y)].team==self.team:
                 continue
-            self.availtakes.append(take)
-        
-
+            availtakes.append(take)
+        return super().updateMoves(boarddata,availmoves,availtakes)
 class Knife(Piece):
     def __init__(self, board: Board, size, x=0, y=0, team=0) -> None:
         ax=x*size
@@ -277,19 +326,20 @@ class Knife(Piece):
             (ax-size/5,ay+size*2/5)
         ]
         super().__init__(board, size, points, x, y, team)
-    def updateMoves(self):
-        self.availmoves=[]
-        self.availtakes=[]
+    def updateMoves(self,boarddata):
+        availmoves=[]
+        availtakes=[]
         for move in self.moves:
             move+=self.position
             if not self.board.validatemove(move.x,move.y,self.team):
                 continue
-            if self.board.data[int(move.x)][int(move.y)]:
-                if self.board.data[int(move.x)][int(move.y)].team==self.team:
+            if boarddata[int(move.x)][int(move.y)]:
+                if boarddata[int(move.x)][int(move.y)].team==self.team:
                     continue
-                self.availtakes.append(move)
+                availtakes.append(move)
                 continue
-            self.availmoves.append(move)
+            availmoves.append(move)
+        return super().updateMoves(boarddata,availmoves,availtakes)
 class Rook(Piece):
     def __init__(self, board: Board, size, x=0, y=0, team=0) -> None:
         ax=x*size
@@ -300,20 +350,21 @@ class Rook(Piece):
                 (ax+size*.7,ay+size*.9),(ax+size*.1,ay+size*.9),(ax+size*.1,ax+size*.3),
                 (ax,ay+size*.3)]
         super().__init__(board, size, points, x, y, team)
-    def updateMoves(self):
-        self.availmoves=[]
-        self.availtakes=[]
+    def updateMoves(self,boarddata):
+        availmoves=[]
+        availtakes=[]
         for direction in self.lines:
             searchpos=self.position
             while True:
                 searchpos+=direction
                 if not self.board.validatemove(searchpos.x,searchpos.y,self.team):
                     break
-                if self.board.data[int(searchpos.x)][int(searchpos.y)]:
-                    if self.board.data[int(searchpos.x)][int(searchpos.y)].team!=self.team:
-                        self.availtakes.append(searchpos)
+                if boarddata[int(searchpos.x)][int(searchpos.y)]:
+                    if boarddata[int(searchpos.x)][int(searchpos.y)].team!=self.team:
+                        availtakes.append(searchpos)
                     break
-                self.availmoves.append(searchpos)
+                availmoves.append(searchpos)
+        return super().updateMoves(boarddata,availmoves,availtakes)
 class Bishop(Piece):
     def __init__(self, board: Board, size, x=0, y=0, team=0) -> None:
         ax=x*size
@@ -327,20 +378,21 @@ class Bishop(Piece):
             (ax+size*-.3,ay+size*.4),(ax,ay+size*.5),(ax+size*-.1,ay+size*.2),
                 ]
         super().__init__(board, size, points, x, y, team)
-    def updateMoves(self):
-        self.availmoves=[]
-        self.availtakes=[]
+    def updateMoves(self,boarddata):
+        availmoves=[]
+        availtakes=[]
         for direction in self.lines:
             searchpos=self.position
             while True:
                 searchpos+=direction
                 if not self.board.validatemove(searchpos.x,searchpos.y,self.team):
                     break
-                if self.board.data[int(searchpos.x)][int(searchpos.y)]:
-                    if self.board.data[int(searchpos.x)][int(searchpos.y)].team!=self.team:
-                        self.availtakes.append(searchpos)
+                if boarddata[int(searchpos.x)][int(searchpos.y)]:
+                    if boarddata[int(searchpos.x)][int(searchpos.y)].team!=self.team:
+                        availtakes.append(searchpos)
                     break
-                self.availmoves.append(searchpos)
+                availmoves.append(searchpos)
+        return super().updateMoves(boarddata,availmoves,availtakes)
 class Queen(Piece):
     def __init__(self, board: Board, size, x=0, y=0, team=0) -> None:
         ax=x*size
@@ -354,22 +406,73 @@ class Queen(Piece):
             (ax+size*-.3,ay+size*.4),(ax,ay+size*.5),(ax+size*-.1,ay+size*.2),
                 ]
         super().__init__(board, size, points, x, y, team)
-    def updateMoves(self):
-        self.availmoves=[]
-        self.availtakes=[]
+    def updateMoves(self,boarddata):
+        availmoves=[]
+        availtakes=[]
         for direction in self.lines:
             searchpos=self.position
             while True:
                 searchpos+=direction
                 if not self.board.validatemove(searchpos.x,searchpos.y,self.team):
                     break
-                if self.board.data[int(searchpos.x)][int(searchpos.y)]:
-                    if self.board.data[int(searchpos.x)][int(searchpos.y)].team!=self.team:
-                        self.availtakes.append(searchpos)
+                if boarddata[int(searchpos.x)][int(searchpos.y)]:
+                    if boarddata[int(searchpos.x)][int(searchpos.y)].team!=self.team:
+                        availtakes.append(searchpos)
                     break
-                self.availmoves.append(searchpos)
-    
+                availmoves.append(searchpos)
+        return super().updateMoves(boarddata,availmoves,availtakes)
 
+class King(Piece):
+    def __init__(self, board: Board, size, x=0, y=0,direction=0,team=0) -> None:
+        self.moves=vector(0,1).all90()+vector(1,1).all90()
+        self.offset=(size*3.5/10,size/10)
+        self.direction=direction
+        ax=x*size
+        ay=y*size
+        points=[
+            (ax+size/10,ay+size/10),(ax+size/10,ay+size*4/10),(ax*2/10,ay+size*4/10),
+            (ax+size/10,ay+size),(ax+size*4/10,ay+size),(ax+size*3/10,ay*4/10),
+            (ax+size*4/10,ay+size*4/10),(ax+size*4/10,ay+size/10)    
+                ]
+        board.teamdata["kings"][team].append(self)
+        super().__init__(board, size, points, x, y,team)
+    def updateMoves(self,boarddata):
+        availmoves=[]
+        availtakes=[] 
+        for move in self.moves:
+            move+=self.position
+            if not self.board.validatemove(move.x,move.y,self.team):
+                continue
+            if boarddata[int(move.x)][int(move.y)]:
+                if boarddata[int(move.x)][int(move.y)].team==self.team:
+                    continue
+                availtakes.append(move)
+            else:
+                availmoves.append(move)
+        return super().updateMoves(boarddata,availmoves,availtakes)
+    def checkcheck(self,moves):
+        data=self.board.makecopy()
+        x=int(self.position.x)
+        y=int(self.position.y)
+        data[x][y]=None
+        safemoves=[]
+        for move in moves:
+            takenpiece=data[int(move.x)][int(move.y)]
+            data[int(move.x)][int(move.y)]=self
+            possiblemoves=self.board.propogateMove(data,teams=[self.team],teaminv=True)
+            unsafe=False
+            for king in self.board.teamdata["kings"][self.team]:
+                if king is self:
+                    if move in possiblemoves:
+                        unsafe=True
+                        break
+                elif king.position in possiblemoves:
+                    unsafe=True
+                    break
+            if not unsafe:
+                safemoves.append(move)
+            data[int(move.x)][int(move.y)]=takenpiece
+        return safemoves
 root=tk.Tk()
 Board(root,8,8,100).pack()
 tk.mainloop()

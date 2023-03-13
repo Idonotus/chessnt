@@ -1,0 +1,2 @@
+import Chess
+Chess.make()
