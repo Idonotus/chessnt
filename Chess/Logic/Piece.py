@@ -26,13 +26,22 @@ class Piece():
         self.boarddata[x][y]=self
         self.position=vector(x,y)
         self.boarddata[int(pos.x)][int(pos.y)]=None
+    
+    def erasemoves(self):
+        self.availmoves=[]
+        self.availtakes=[]
+
     def updateMoves(self,boarddata,cc):
-        self.availmoves,self.availtakes=self.getavailmoves(boarddata,cc)
+        self.erasemoves()
+        if self.team in self.logic.teamturn:
+            self.availmoves,self.availtakes=self.getavailmoves(boarddata,cc)
+
     def validatecheck(self,availmoves,availtakes,cc=False):
         if cc:
             availmoves=self.checkcheck(availmoves)
             availtakes=self.checkcheck(availtakes)
         return availmoves,availtakes
+
     def checkcheck(self,moves):
         data=self.logic.makecopy()
         x=int(self.position.x)
