@@ -31,7 +31,7 @@ class Logic:
         for i,_ in enumerate(self.teams):
             if hasattr(self.teams[i],"non-player"):
                 continue
-            teammoves=self.getallmoves(teams=[i])[2]
+            teammoves=self.getallmoves(teams=[i],cc=True)[2]
             if len(teammoves)==0:
                 if self.game!=None:
                     self.game.teamlose(i)
@@ -72,7 +72,7 @@ class Logic:
                 if tile.team not in teams:
                     continue
                 tile.updateMoves(data,cc=True)
-    def getallmoves(self,data=None,teams=[],teaminv=False):
+    def getallmoves(self,data=None,teams=[],teaminv=False,cc=False):
         if not data:
             data=self.data
         takes=[]
@@ -87,7 +87,7 @@ class Logic:
                 else:
                     if tile.team not in teams:
                         continue
-                temp= tile.getavailmoves(data)
+                temp= tile.getavailmoves(data,cc)
                 moves+=temp[0]
                 takes+=temp[1]
         actions=moves+takes

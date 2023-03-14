@@ -4,12 +4,15 @@ class Conductor:
         self.turnorder=self.genturn(turnorder)
         self.servermode=servermode
     
-    def genturn(self,turnorder):
+    def genturn(self,turnorder:list):
         while True:
             t=turnorder[0]
             turnorder.pop(0)
             turnorder.append(t)
             yield t
+
+    def end(self):
+        self.turnorder=self.genturn([-1])
 
     def newturn(self):
         if self.servermode:

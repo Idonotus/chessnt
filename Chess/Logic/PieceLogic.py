@@ -131,13 +131,13 @@ class Queen(Piece):
                         availtakes.append(searchpos)
                     break
                 availmoves.append(searchpos)
-        return super().updateMoves(availmoves,availtakes,cc)
+        return super().validatecheck(availmoves,availtakes,cc)
 
 class Knight(Piece):
     def __init__(self, logic, x=0, y=0, team=0) -> None:
         self.moves=vector(1,2).all90()+vector(-1,2).all90()
         super().__init__(logic, x, y, team)
-    def updateMoves(self,boarddata,cc=False):
+    def getavailMoves(self,boarddata,cc=False):
         availmoves=[]
         availtakes=[]
         for move in self.moves:
@@ -150,7 +150,7 @@ class Knight(Piece):
                 availtakes.append(move)
                 continue
             availmoves.append(move)
-        return super().updateMoves(availmoves,availtakes,cc)
+        return super().validatecheck(availmoves,availtakes,cc)
 def getallpieces():
     return {
         "king":King,

@@ -8,7 +8,7 @@ class Gui(tk.Canvas):
         self.WIDTH=width
         self.HEIGHT=height
         self.TILESIZE=tile
-        self.colour=("#191825","#865DFF")
+        self.colour=("#FFFFFF","#000000")
         self.movehighlights=("#E384FF","#FFA3FD")
         super().__init__(master,height=(height)*tile,width=(width)*tile)
         self.bind("<Button-1>",self.drag_start)
@@ -83,7 +83,9 @@ class Gui(tk.Canvas):
                 self.itemconfigure(self.tiles[int(pos.x)][int(pos.y)],fill=fill)
             highlight.append(pos)
 
-
+    def end(self,team):
+        p=tk.Toplevel()
+        tk.Label(p,text=f"Team {team+1} lost\nL BOZO").pack()
     def placepiece(self,image,x,y,Piece):
         x,y=self.localrotate(self.ROTATION,x,y)
         xpos=x*self.TILESIZE

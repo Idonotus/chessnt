@@ -20,6 +20,8 @@ class Game:
         self.logic.addpiece(x=x,y=y,name=name,team=team,**kwargs)
         self.gui.addpiece(x=x,y=y,name=name,team=team)
     def endturn(self):
+        if self.end:
+            return
         self.logic.endcheck()
         if self.end:
             return
@@ -27,11 +29,14 @@ class Game:
         self.logic.updateallmoves(teams=[0,1])
     def start(self):
         self.logic.updateallmoves(teams=[0])
-
+    def teamlose(self,team):
+        self.gui.end(team)
+        self.conductor.end()
 def make():
     g=Game(height=8,width=8,tile=60)
     g.addpiece("king",1,1,0)
     g.addpiece("king",3,3,1)
     g.addpiece("rook",3,2,1)
+    g.addpiece("queen",7,7,0)
     g.start()
     tk.mainloop()
