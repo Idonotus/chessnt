@@ -4,7 +4,7 @@ import json
 import sqlite3
 
 database=sqlite3.connect("server.db")
-database.execute("CREATE TABLE IF NOT EXISTS users (name TEXT UNIQUE, auth INT, password TEXT, originadress TEXT)")
+database.execute("CREATE TABLE IF NOT EXISTS users (name TEXT UNIQUE, auth INT, password TEXT, originaddress TEXT)")
 database.execute("CREATE TABLE IF NOT EXISTS addresses (addr TEXT UNIQUE, Userslotsleft INT)")
 database.commit()
 class Room:
@@ -47,8 +47,8 @@ class Server(socket.socket):
                         
                     
             data=coms[-1:]
-
-    def createUser(self,com)
+    
+    def validatecredentials(self,com)
         if not("pass" in com["args"] and "name" in com["args"]):
             {"com":"raiseError","args":{
                 "data":"Username or password not found",
@@ -61,10 +61,20 @@ class Server(socket.socket):
                 }}
             return False
         if not 3<=len(com["args"]["name"])<=25:
-            {"com":"raiseError","args":{
-                "data":"Username must be between 3 and 25 characters",
-                "type":"createUserError"}}
+            
             return False
-        database.execute("INSERT INTO ")     
+    
+    def returnError(self,c,errortype,msg):
+        data={"com":"raiseError","args":{
+                "data":msg,
+                "type":errortype}}
+
+    def createUser(self,c,auth,name,pasword,addr):
+        try:
+            database.execute("INSERT INTO addresses VALUES (name=?,auth=?,pass=?,originaddress=?)",
+                             (name,auth,pasword,addr)
+                             ) 
+        except sqlite3.IntegrityError:
+            self.returnError()
 if __name__=="__main__":
     s=Server()
