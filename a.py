@@ -1,2 +1,2 @@
 import Chess
-Chess.make()
+Chess.makeclassic()

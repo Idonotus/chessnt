@@ -85,7 +85,7 @@ class Gui(tk.Canvas):
 
     def end(self,team):
         p=tk.Toplevel()
-        tk.Label(p,text=f"Team {team+1} lost\nL BOZO").pack()
+        tk.Label(p,text=f"Team {team+1} lost").pack()
     def placepiece(self,image,x,y,Piece):
         x,y=self.localrotate(self.ROTATION,x,y)
         xpos=x*self.TILESIZE
@@ -118,14 +118,7 @@ class Gui(tk.Canvas):
         pos2=vector(x,y)
         if self.logic:
             a=self.logic.movepiece(widget.position,pos2)
-        
-        match a:
-            case "return":
-                self.draggable.returnpiece()
-            case "move":
-                self.draggable.movepiece(x,y)
-            case "take":
-                self.draggable.takepiece(x,y)
+        self.draggable.move(a,pos2)
         self.draggable=None         
         self.removehighlight(self.movehighlight)
     def drag_start(self,event):

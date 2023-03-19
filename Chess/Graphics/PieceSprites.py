@@ -10,7 +10,10 @@ class Pawn(Piece):
             (ax+size*4/10,ay+size*4/10),(ax+size*4/10,ay+size/10)    
                 ]
         super().__init__(gui, size, points, x, y,team)
-    
+    def specialmoves(self,action, x, y):
+        if action=="promote":
+            self.delete()
+            self.gui.addpiece("queen",x,y,self.team)
 class Knife(Piece):
     def __init__(self, gui, size, x=0, y=0, team=0) -> None:
         ax=x*size
@@ -73,6 +76,7 @@ class King(Piece):
         super().__init__(gui, size, points, x, y,team)
 def getallpieces():
     return {
+        "cpawn":Pawn,
         "pawn":Pawn,
         "knight":Knife,
         "rook":Rook,

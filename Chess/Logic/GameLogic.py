@@ -13,7 +13,7 @@ class Logic:
         self.data=[]
         self.teams=[]
         self.pieceauth=[0,1]
-        self.teamturn=[0]
+        self.teamturn=[1]
         for i in range(numteams):
             self.teams.append(Team)
         for x in range(width):
@@ -54,9 +54,7 @@ class Logic:
 
                 copy[n].append(tile)
         return copy
-    def validatemove(self,x,y,team=0):
-        if team not in self.pieceauth:
-            return False
+    def validatemove(self,x,y):
         if not 0<=x<self.WIDTH:
             return False
         if not 0<=y<self.HEIGHT:
@@ -108,11 +106,8 @@ class Logic:
         origin=self.data[int(pos1.x)][int(pos1.y)]
         if not origin:
             return False
-        action=origin.checkmove(pos2)
+        action=origin.move(pos2,self.data)
         if action != "return":
-            origin.position=pos2
-            self.data[int(pos1.x)][int(pos1.y)]=None
-            self.data[int(pos2.x)][int(pos2.y)]=origin
             if self.game != None:
                 self.game.endturn()
         return action

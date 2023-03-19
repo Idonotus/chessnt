@@ -8,6 +8,23 @@ class Piece():
         self.image=gui.create_polygon(*points,fill=gui.teamcolours[team])
         self.returnpiece()
 
+    def specialmoves(self,action,x,y):
+        pass
+
+    def move(self,actions,move):
+        x=int(move.x)
+        y=int(move.y)
+        if isinstance(actions,str):
+            actions=[actions]
+        for action in actions:
+            if action =="return":
+                self.returnpiece()
+            elif action=="take":
+                self.takepiece(x,y)
+            elif action=="move":
+                self.movepiece(x,y)
+            else:
+                self.specialmoves(action,x,y)
 
     def delete(self):
         self.gui.delete(self.image)

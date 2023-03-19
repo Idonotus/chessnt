@@ -1,8 +1,15 @@
 from .Piece import Piece
 from ..vectormath import *
 
+
+
 class Pawn(Piece):
-    def __init__(self,logic, x=0, y=0,direction=0,team=0) -> None:
+    def __init__(self,logic, x=0, y=0,direction=None,team=0) -> None:
+        if not direction:
+            if team==1:
+                direction=2
+            else:
+                direction=0
         self.moves=(vector(0,1).rot90(direction),)
         self.takes=(vector(1,1).rot90(direction),vector(-1,1).rot90(direction))
         self.startmove=(vector(0,2).rot90(direction),)
@@ -11,16 +18,16 @@ class Pawn(Piece):
     def getavailmoves(self,boarddata,cc=False):
         availmoves=[]
         availtakes=[] 
-        for move in self.startmove+self.moves:
+        for move in self.moves+self.startmove:
             move+=self.position
-            if not self.logic.validatemove(move.x,move.y,self.team):
-                continue
+            if not self.logic.validatemove(move.x,move.y):
+                break
             if boarddata[int(move.x)][int(move.y)]:
-                continue
+                break
             availmoves.append(move)
         for take in self.takes:
             take+=self.position
-            if not self.logic.validatemove(take.x,take.y,self.team):
+            if not self.logic.validatemove(take.x,take.y):
                 continue
             if not boarddata[int(take.x)][int(take.y)]:
                 continue
@@ -28,7 +35,35 @@ class Pawn(Piece):
                 continue
             availtakes.append(take)
         return super().validatecheck(availmoves,availtakes,cc)
-
+    def move(self,move,data):
+        
+        a=super().move(move,data)
+        if a=="return":
+            return a
+        if len(self.startmove)!=0:
+            self.startmove=()
+        m=move+self.moves[0]
+        x=m.x
+        y=m.y
+        if self.logic.validatemove(x,y):
+            return a
+        a=[a,"promote"]
+        self.logic.addpiece(int(move.x),int(move.y),"queen",self.team)
+        return a
+class CowardPawn(Pawn):
+    def move(self,move,data):
+        a=super().move(move,data)
+        if a=="return":
+            return a
+        if len(self.startmove)!=0:
+            self.startmove=()
+        m=move+self.moves[0]
+        x=m.x
+        y=m.y
+        if self.logic.validatemove(x,y):
+            return a
+        self.logic.addpiece(int(move.x),int(move.y),"cpawn",self.team,direction=self.direction+2)
+        return a        
 class Rook(Piece):
     def __init__(self, logic, x=0, y=0, team=0) -> None:
         self.lines=vector(0,1).all90()
@@ -40,7 +75,7 @@ class Rook(Piece):
             searchpos=self.position
             while True:
                 searchpos+=direction
-                if not self.logic.validatemove(searchpos.x,searchpos.y,self.team):
+                if not self.logic.validatemove(searchpos.x,searchpos.y):
                     break
                 if boarddata[int(searchpos.x)][int(searchpos.y)]:
                     if boarddata[int(searchpos.x)][int(searchpos.y)].team!=self.team:
@@ -59,12 +94,11 @@ class King(Piece):
         availtakes=[] 
         for move in self.moves:
             move+=self.position
-            if not self.logic.validatemove(move.x,move.y,self.team):
+            if not self.logic.validatemove(move.x,move.y):
                 continue
             if boarddata[int(move.x)][int(move.y)]:
                 if boarddata[int(move.x)][int(move.y)].team==self.team:
                     continue
-                
                 availtakes.append(move)
             else:
                 availmoves.append(move)
@@ -95,16 +129,16 @@ class King(Piece):
 
 class Bishop(Piece):
     def __init__(self, logic, x=0, y=0, team=0) -> None:
-
+        self.lines=vector(1,1).all90()
         super().__init__(logic, x, y, team)
-    def getavailoves(self,boarddata,cc=False):
+    def getavailmoves(self,boarddata,cc=False):
         availmoves=[]
         availtakes=[]
         for direction in self.lines:
             searchpos=self.position
             while True:
                 searchpos+=direction
-                if not self.logic.validatemove(searchpos.x,searchpos.y,self.team):
+                if not self.logic.validatemove(searchpos.x,searchpos.y):
                     break
                 if boarddata[int(searchpos.x)][int(searchpos.y)]:
                     if boarddata[int(searchpos.x)][int(searchpos.y)].team!=self.team:
@@ -124,7 +158,7 @@ class Queen(Piece):
             searchpos=self.position
             while True:
                 searchpos+=direction
-                if not self.logic.validatemove(searchpos.x,searchpos.y,self.team):
+                if not self.logic.validatemove(searchpos.x,searchpos.y):
                     break
                 if boarddata[int(searchpos.x)][int(searchpos.y)]:
                     if boarddata[int(searchpos.x)][int(searchpos.y)].team!=self.team:
@@ -137,12 +171,12 @@ class Knight(Piece):
     def __init__(self, logic, x=0, y=0, team=0) -> None:
         self.moves=vector(1,2).all90()+vector(-1,2).all90()
         super().__init__(logic, x, y, team)
-    def getavailMoves(self,boarddata,cc=False):
+    def getavailmoves(self,boarddata,cc=False):
         availmoves=[]
         availtakes=[]
         for move in self.moves:
             move+=self.position
-            if not self.logic.validatemove(move.x,move.y,self.team):
+            if not self.logic.validatemove(move.x,move.y):
                 continue
             if boarddata[int(move.x)][int(move.y)]:
                 if boarddata[int(move.x)][int(move.y)].team==self.team:
@@ -153,6 +187,7 @@ class Knight(Piece):
         return super().validatecheck(availmoves,availtakes,cc)
 def getallpieces():
     return {
+        "cpawn":CowardPawn,
         "king":King,
         "queen":Queen,
         "pawn":Pawn,

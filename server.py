@@ -37,6 +37,7 @@ class Server(socket.socket):
         userdata=None
         r=database.execute("SELECT Userslotsleft FROM addresses WHERE addr=?",(addr,))
         canCreateUser=0<r.fetchone()[0]
+        del r
         while True:
             data+=c.recv(1024).decode()
             coms=data.split("\0")
@@ -44,37 +45,48 @@ class Server(socket.socket):
                 com=json.loads(com)
                 if not userdata:
                     if com["com"]=="createUser" and canCreateUser:
+                        self.userSignUp(c,com,addr)
                         
                     
             data=coms[-1:]
-    
-    def validatecredentials(self,com)
-        if not("pass" in com["args"] and "name" in com["args"]):
-            {"com":"raiseError","args":{
-                "data":"Username or password not found",
-                "type":"createUserError"}}
-            return False
-        if not 1<=len(com["args"]["pass"])<=100:
-            {"com":"raiseError","args":{
-                "data":"Password must be between 100 and 1 characters",
-                "type":"createUserError"
-                }}
-            return False
-        if not 3<=len(com["args"]["name"])<=25:
-            
-            return False
+        
+    def userSignUp(self,c,com,addr):
+        response=self.validatecredentials()
+        if not response[0]:
+            self.returnError(c,response[1],response[2])
+            return
+        response=self.createUser(c,1,com["name"],com["pass"],addr)
+        if not response:
+            self.returnError(c,"UserExistsError","The user being created already exists")
+        else:
+            data={"com":"Login","user":com["name"]}
+            data=json.dumps(data)+"\0"
+            c.sendall(data.encode())
+
+    def validatecredentials(self,com)->tuple[bool,str,str]:
+        if not("pass" in com and "name" in com):
+            return (False,"CredentialsError","Username or Password missing")
+        if not 1<=len(com["pass"])<=100:
+            return (False,"CredentialsError","Password too long")
+        if not 3<=len(com["name"])<=25:
+            return (False,"CredentialsError","Username too long")
+        return (True,"CredentialsSucess","Requirements met")
     
     def returnError(self,c,errortype,msg):
-        data={"com":"raiseError","args":{
+        data={"com":"raiseError",
                 "data":msg,
-                "type":errortype}}
+                "type":errortype}
+        data=json.dumps(data)+"\0"
+        c.sendall(data.encode())
 
-    def createUser(self,c,auth,name,pasword,addr):
+    def createUser(self,auth,name,pasword,addr):
         try:
             database.execute("INSERT INTO addresses VALUES (name=?,auth=?,pass=?,originaddress=?)",
                              (name,auth,pasword,addr)
-                             ) 
+                             )
+            database.commit()
+            return True
         except sqlite3.IntegrityError:
-            self.returnError()
+            return False
 if __name__=="__main__":
     s=Server()
