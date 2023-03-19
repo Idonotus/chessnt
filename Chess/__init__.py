@@ -2,8 +2,16 @@ import tkinter as tk
 from .Logic import GameLogic as logic
 from .Graphics import GameGraphics as gui
 from .Logic import GamecConductor as conductor
-
-
+pieces={
+    "c":"cpawn",
+    "p":"pawn",
+    "k":"king",
+    "r":"rook",
+    "q":"queen",
+    "n":"knight",
+    "b":"bishop"
+}
+classic="8x8|b|r0,n0,b0,q0,k0,b0,n0,r0|nr|p0*8|nr|o*8|nr|o*8|nr|o*8|nr|o*8|nr|p1*8|nr|r1,n1,b1,q1,k1,b1,n1,r1"
 class Game:
     """Allows for communication between modules and generally parses things together"""
     def __init__(self,master=None,height=8,width=8,tile=50) -> None:
@@ -13,7 +21,7 @@ class Game:
         self.gui.pack()
         self.logic=logic.Logic(width,height,2,self)
         self.gui.logic=self.logic
-        self.conductor=conductor.Conductor([1,0])
+        self.conductor=conductor.Conductor([0,1])
         self.conductor.logic=self.logic
         self.end=False
     def addpiece(self,name,x,y,team,**kwargs):
@@ -27,16 +35,31 @@ class Game:
             return
         self.conductor.newturn()
         self.logic.updateallmoves(teams=[0,1])
-    def start(self):
-        self.logic.updateallmoves(teams=[0])
+    def start(self):        
+        self.logic.updateallmoves(teams=[0,1])
     def teamlose(self,team):
         self.gui.end(team)
         self.conductor.end()
-def make():
-    g=Game(height=8,width=8,tile=60)
-    g.addpiece("king",1,1,0)
-    g.addpiece("king",3,3,1)
-    g.addpiece("rook",3,2,1)
-    g.addpiece("queen",7,7,0)
+def makeclassic():
+    makeboard(classic)
+
+def makeboard(data):
+    data=data.split("|b|")
+    sizedata=data[0].split("x")
+    g=Game(master=tk.Tk(),width=int(sizedata[0]),height=int(sizedata[1]),tile=75)
+    for y,row in enumerate(data[1].split("|nr|")):
+        x=0
+        for tile in row.split(","):
+            places=1
+            p=tile
+            if "*" in tile:
+                tile=tile.split("*")
+                p=tile[0]
+                places=int(tile[1])
+            for _ in range(places):
+                if p[0]=="o":
+                    continue
+                g.addpiece(pieces[p[0]],x,y,int(p[1]))
+                x+=1
     g.start()
     tk.mainloop()

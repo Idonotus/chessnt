@@ -51,6 +51,7 @@ class Pawn(Piece):
         self.logic.addpiece(int(move.x),int(move.y),"queen",self.team)
         return a
 class CowardPawn(Pawn):
+    #an inside joke that the pawn instead of promoting would just turn around
     def move(self,move,data):
         a=super().move(move,data)
         if a=="return":
