@@ -7,6 +7,24 @@ database=sqlite3.connect("server.db")
 database.execute("CREATE TABLE IF NOT EXISTS users (name TEXT UNIQUE, auth INT, password TEXT, originaddress TEXT)")
 database.execute("CREATE TABLE IF NOT EXISTS addresses (addr TEXT UNIQUE, Userslotsleft INT)")
 database.commit()
+# --------TO DO---------
+# 1.Login and leave Doin
+# 2.CHESS
+# 3.CHAT
+# 4.MODERATION
+# 5.User stats
+#
+#
+#
+#
+#
+class Connection():
+    def __init__(self,addr,con:socket.socket) -> None:
+        self.addr=addr
+        self.con=con
+        self.username=None
+        self.auth=None
+        pass
 class Room:
     def __init__(self) -> None:
         self.users=[]
@@ -46,18 +64,33 @@ class Server(socket.socket):
                 if not userdata:
                     if com["com"]=="createUser" and canCreateUser:
                         self.userSignUp(c,com,addr)
+                    if com["com"]=="loginUser":
+                        self.login
                         
                     
             data=coms[-1:]
-        
-    def userSignUp(self,c,com,addr):
-        response=self.validatecredentials()
+    def login(self,connection,com):
+        c=connection.c
+        response=self.validatecredentials(com)
+        if not response[0]:
+            self.returnError(c,response[1],response[2])
+            return
+        response=database.execute("SELECT * FROM users WHERE (name=?,password=?)",(com["name"],com["pass"]))
+        data=response.fetchone()
+        if not data:
+            self.returnError(c,"UserNotFound","Username or password not found")
+        connection.auth=data[1]
+        connection.name=data[0]
+    def userSignUp(self,connection,com):
+        c=connection.c
+        addr=connection.addr
+        response=self.validatecredentials(com)
         if not response[0]:
             self.returnError(c,response[1],response[2])
             return
         response=self.createUser(c,1,com["name"],com["pass"],addr)
         if not response:
-            self.returnError(c,"UserExistsError","The user being created already exists")
+            self.returnError(c,"UserExists","The user being created already exists")
         else:
             data={"com":"Login","user":com["name"]}
             data=json.dumps(data)+"\0"
@@ -76,6 +109,7 @@ class Server(socket.socket):
         data={"com":"raiseError",
                 "data":msg,
                 "type":errortype}
+        print(msg)
         data=json.dumps(data)+"\0"
         c.sendall(data.encode())
 
@@ -87,6 +121,7 @@ class Server(socket.socket):
             database.commit()
             return True
         except sqlite3.IntegrityError:
+            database.rollback()
             return False
 if __name__=="__main__":
     s=Server()
