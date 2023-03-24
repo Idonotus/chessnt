@@ -8,17 +8,17 @@ database.execute("CREATE TABLE IF NOT EXISTS users (name TEXT UNIQUE, auth INT, 
 database.execute("CREATE TABLE IF NOT EXISTS addresses (addr TEXT UNIQUE, Userslotsleft INT)")
 database.commit()
 # --------TO DO---------
-# 1.Login and leave Doin
-# 2.CHESS
-# 3.CHAT
-# 4.MODERATION
-# 5.User stats
+# +Login and leave
+# 1.CHESS
+# 2.CHAT
+# 3.MODERATION
+# 4.User stats
 #
 #
 #
 #
 #
-class Connection():
+class Conndata():
     def __init__(self,addr,con:socket.socket) -> None:
         self.addr=addr
         self.con=con
@@ -49,10 +49,10 @@ class Server(socket.socket):
             r=database.execute("SELECT count(*) FROM addresses WHERE addr=?",(addr,))
             if not r.fetchone()[0]:
                 database.execute("INSERT INTO addresses (addr,Userslotsleft) VALUES (?,1)",(addr,))
+            threading.Thread(target=self.handleUser,args=(c,addr))
 
     def handleUser(self,c:socket.socket,addr):
-        data=""
-        userdata=None
+        userdata=Conndata(addr,c)
         r=database.execute("SELECT Userslotsleft FROM addresses WHERE addr=?",(addr,))
         canCreateUser=0<r.fetchone()[0]
         del r
@@ -61,11 +61,14 @@ class Server(socket.socket):
             coms=data.split("\0")
             for com in coms[:-1]:
                 com=json.loads(com)
-                if not userdata:
+                if not userdata.username:
                     if com["com"]=="createUser" and canCreateUser:
-                        self.userSignUp(c,com,addr)
+                        self.userSignUp(userdata,com)
                     if com["com"]=="loginUser":
-                        self.login
+                        self.login(userdata,com)
+                else:
+                    if com["com"] in ["createUser","loginUser"]:
+                        self.returnError(c,"LoginError","User is already logged in")
                         
                     
             data=coms[-1:]
@@ -79,6 +82,10 @@ class Server(socket.socket):
         data=response.fetchone()
         if not data:
             self.returnError(c,"UserNotFound","Username or password not found")
+            return
+        data={"com":"Login","user":com["name"]}
+        data=json.dumps(data)+"\0"
+        c.sendall(data.encode())
         connection.auth=data[1]
         connection.name=data[0]
     def userSignUp(self,connection,com):
@@ -95,11 +102,13 @@ class Server(socket.socket):
             data={"com":"Login","user":com["name"]}
             data=json.dumps(data)+"\0"
             c.sendall(data.encode())
+            connection.auth=data[1]
+            connection.name=data[0]
 
     def validatecredentials(self,com)->tuple[bool,str,str]:
         if not("pass" in com and "name" in com):
             return (False,"CredentialsError","Username or Password missing")
-        if not 1<=len(com["pass"])<=100:
+        if not 1<=len(com["pass"])<=50:
             return (False,"CredentialsError","Password too long")
         if not 3<=len(com["name"])<=25:
             return (False,"CredentialsError","Username too long")
