@@ -41,11 +41,23 @@ class ConnectPage(ttk.Frame):
         self.Lpass=Password(l,20)
         self.Lpass.grid(padx=10,pady=10,row=3)
         ttk.Button(l,text="Login").grid(row=4)
+        self.Logerr=ttk.Label(l)
+        self.Logerr.grid(row=6)
         note.add(lt,text="Login")
         self.pack()
 
     def Login(self):
-        a=self.Lpass.get()
+        password=self.Lpass.get()
+        name=self.Luser.get()
+        valid=False
+        if not 3<=len(name)<=25:
+            self.showerror(self.Logerr,"CredentialsError: Username invalid")
+        elif not 1<=len(password)<=50:
+            self.showerror(self.Logerr,"CredentialsError: Password invalid")
+        else:
+            valid=True
+        if not valid:
+            return
 
     def showerror(self,label,text:str,linelim:int):
         text=[text[i:i+linelim] for i in range(0, len(text), linelim)]
