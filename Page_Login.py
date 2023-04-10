@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk
-import socket
 class Password(ttk.Frame):
     def __init__(self, master = None,width=0) -> None:
         super().__init__(master, width=width)
@@ -15,10 +14,11 @@ class Password(ttk.Frame):
             self.entry["show"]="*"
     def get(self):
         return self.entry.get()
-class ConnectPage(ttk.Frame):
+class LoginPage(ttk.Frame):
     def __init__(self,master=None,main=None,nethandler=None) -> None:
         if not master:
             master=tk.Tk()
+            master.title("PPPPPPPPPPPPP")
         self.main=main
         self.s=nethandler
         super().__init__(master=master,height=700,width=1300)
@@ -41,8 +41,42 @@ class ConnectPage(ttk.Frame):
         ttk.Button(l,text="Login",command=self.Login).grid(row=4)
         self.Logerr=ttk.Label(l)
         self.Logerr.grid(row=6)
+        st=ttk.Frame(note)
+        st.pack(anchor="center")
+        s=ttk.Frame(st)
+        s.grid(row=0,column=0)
+        st.grid_columnconfigure(0,weight=1)
+        st.grid_rowconfigure(0,weight=1)
+        ttk.Label(s,text="Username").grid(row=0)
+        self.Suser=ttk.Entry(s,width=20)
+        self.Suser.grid(row=1,pady=10,padx=10)
+        ttk.Label(s,text="Password").grid(row=2)
+        self.Spass=Password(s,20)
+        self.Spass.grid(padx=10,pady=10,row=3)
+        self.Sverif=Password(s,20)
+        self.Sverif.grid(padx=10,pady=10,row=4)
+        ttk.Button(s,text="Sign up",command=self.SignUp).grid(row=5)
+        self.Sigerr=ttk.Label(s)
+        self.Sigerr.grid(row=6)
         note.add(lt,text="Login")
+        note.add(st,text="Sign up")
         self.pack()
+
+    def SignUp(self):
+        password=self.Spass.get()
+        verification=self.Sverif.get()
+        if password!=verification:
+            self.showerror(self.Sigerr,"CredentialsError: Passwords dont match",20)
+            return
+        name=self.Suser.get()
+        if not 3<=len(name)<=25:
+            self.showerror(self.Sigerr,"CredentialsError: Username invalid",20)
+            return
+        elif not 1<=len(password)<=50:
+            self.showerror(self.Sigerr,"CredentialsError: Password invalid",20)
+            return
+        if self.s:
+            self.s.send(com="createUser",name=name,password=password)
 
     def Login(self):
         password=self.Lpass.get()
@@ -71,6 +105,10 @@ class ConnectPage(ttk.Frame):
                 line=word+" "
         newtext="\n".join(newtext)
         label.config(text=text)
+    
+    def handleCommand(self,com):
+        pass
+
 if __name__=="__main__":
-    c=ConnectPage()
+    c=LoginPage()
     tk.mainloop()

@@ -31,14 +31,13 @@ class ConnectPage(ttk.Frame):
         except ValueError:
             self.showerror(self.errtxt,f"Not a valid port number",35)
             return
-        s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         try:
-            s.connect((HOST, PORT))
-        except Exception as error:
+            if self.main:
+                self.s.connect((HOST, PORT))
+        except socket.error as error:
             self.showerror(self.errtxt,f"{error} for port:{PORT}",30)
             return
         if self.main:
-            self.main.socket=s
             self.main.page("main")
 
     def showerror(self,label,text:str,linelim:int):

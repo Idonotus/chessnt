@@ -2,11 +2,12 @@ import socket
 import threading
 import json
 import sqlite3
-import time
-database=sqlite3.connect("server.db")
-database.execute("CREATE TABLE IF NOT EXISTS users (name TEXT UNIQUE, auth INT, password TEXT, originaddress TEXT)")
+import errno
+database=sqlite3.connect("server.db",check_same_thread=False)
+database.execute("CREATE TABLE IF NOT EXISTS users (name TEXT UNIQUE, auth INT, pass TEXT, originaddress TEXT)")
 database.execute("CREATE TABLE IF NOT EXISTS addresses (addr TEXT UNIQUE, Userslotsleft INT)")
 database.commit()
+dataaccess=threading.Lock()
 # --------TO DO---------
 # +Login and leave
 # 1.CHESS
@@ -18,14 +19,107 @@ database.commit()
 #
 #
 #
-class Room:
-    def __init__(self) -> None:
-        self.users=[]
-    
-    def chat(self):
-        pass
+class Server(socket.socket):
+    def __init__(self, handler, family: socket.AddressFamily  = socket.AF_INET, type: socket.SocketKind = socket.SOCK_STREAM) -> None:
+        super().__init__(family, type)
+        self.HOST=socket.gethostbyname(socket.gethostname())
+        self.bind((self.HOST,40000))
+        self.PORT=self.getsockname()[1]
+        print("Listening on ", self.getsockname())
+        self.acceptingCon=True
+        self.handler=handler
+        self.listen()
+        self.acceptCon()
         
-class SelfHandler:
+    def acceptCon(self):
+        while self.acceptingCon:
+            c,addr=self.accept()
+            c.sendall("aaaaa".encode())
+            dataaccess.acquire()
+            r=database.execute("SELECT count(*) FROM addresses WHERE addr=?",(addr[0],))
+            if not r.fetchone()[0]:
+                database.execute("INSERT INTO addresses (addr,Userslotsleft) VALUES (?,1)",(addr[0],))
+                database.commit()
+            dataaccess.release()
+            h=self.handler(c,addr,self)
+            threading.Thread(target=h.start).start()
+            
+    def login(self,connection,user,com):
+        c=connection
+        response=self.validatecredentials(com)
+        if not response[0]:
+            self.clientError(c,"l-"+response[1],"Login")
+        dataaccess.acquire()
+        response=database.execute("SELECT * FROM users WHERE (name=?,password=?)",(com["name"],com["pass"]))
+        dataaccess.release()
+        data=response.fetchone()
+        if not data:
+            self.clientError(c,"l-UserNotFound","Login")
+            return
+        data={"com":"Login","user":com["name"]}
+        data=json.dumps(data)+"\0"
+        c.sendall(data.encode())
+        user.auth=data[1]
+        user.name=data[0]
+    def userSignUp(self,connection,user,com):
+        c=connection
+        addr=user.addr[0]
+        response=self.validatecredentials(com)
+        if not response[0]:
+            self.clientError(c,"s-"+response[1],"Login")
+            return
+        response=self.createUser(1,com["name"],com["pass"],addr)
+        if not response:
+            self.clientError(c,"s-UserCreationError","Login")
+            return
+        dataaccess.acquire()
+        database.execute("UPDATE addresses SET Userslotsleft=0 where addr=?",(addr,))
+        database.commit()
+        dataaccess.release()
+        data={"com":"Login","user":com["name"]}
+        data=json.dumps(data)+"\0"
+        c.sendall(data.encode())
+        user.auth=data[1]
+        user.name=data[0]
+
+    def validatecredentials(self,com)->tuple[bool,str,str]:
+        if not("pass" in com and "name" in com):
+            return (False,"BlankError")
+        if not 1<=len(com["pass"])<=50:
+            return (False,"LengthError")
+        if not 3<=len(com["name"])<=25:
+            return (False,"LengthError")
+        return (True,"CredentialsSucess")
+    
+    def createUser(self,auth,name,pasword,addr):
+        dataaccess.acquire()
+        try:
+            database.execute("INSERT INTO users (name,auth,pass,originaddress) VALUES (?,?,?,?)",
+                             (name,auth,pasword,addr)
+                             )
+            database.commit()
+            success=True
+        except sqlite3.IntegrityError:
+            database.rollback()
+            success=False
+        dataaccess.release()
+        return success
+        
+    def clientError(self,c,errortype,mod=None):
+        if mod==None:
+            mod="main"
+        data={"com":"raiseError",
+                "data":mod,
+                "type":errortype}
+        data=json.dumps(data)+"\0"
+        c.sendall(data.encode())
+
+    def leaveClient(self,user):
+        pass
+
+    def kickClient(self,user):
+        user.c.close
+class UserHandler:
     def __init__(self,c:socket.socket,addr,server:Server) -> None:
         self.user=None
         self.auth=None
@@ -33,111 +127,35 @@ class SelfHandler:
         self.addr=addr
         self.server=server
     def start(self):
-        userdata=Conndata(addr,c)
-        r=database.execute("SELECT Userslotsleft FROM addresses WHERE addr=?",(addr,))
+        dataaccess.acquire()
+        r=database.execute("SELECT Userslotsleft FROM addresses WHERE addr=?",(self.addr[0],))
         canCreateUser=0<r.fetchone()[0]
+        database.rollback()
+        dataaccess.release()
+        c=self.c
+        s=self.server
         del r
-        actions=0
-        start=int(time.time())
+        data=""
         while True:
-            
-            data+=c.recv(1024).decode()
+            try:
+                data+=c.recv(1024).decode()
+            except socket.error as error:
+                if error.errno!= errno.ECONNRESET:
+                    raise error
+                s.leaveClient(self)
+                break
+            if data in [""]+coms[-1:]:
+                s.leaveClient(self)
+                break
             coms=data.split("\0")
+            print(data)
             for com in coms[:-1]:
                 com=json.loads(com)
-                if not userdata.username:
+                if not self.user:
                     if com["com"]=="createUser" and canCreateUser:
-                        self.userSignUp(userdata,com)
+                        s.userSignUp(c,self,com)
                     if com["com"]=="loginUser":
-                        self.login(userdata,com)
-                else:
-                    if com["com"] in ["createUser","loginUser"]:
-                        self.returnError(c,"LoginError","User is already logged in")
-                if actions>30:
-                    end=int(time.time())
-                    if end-start<=1:
-                        self.kick(userdata)
-                    start=end
-                    actions=0
-            data=coms[-1:]
-            actions+=1
-    def returnError(self,c,errortype,msg):
-        data={"com":"raiseError",
-                "data":msg,
-                "type":errortype}
-        print(msg)
-        data=json.dumps(data)+"\0"
-        c.sendall(data.encode())
-class Server(socket.socket):
-    def __init__(self, family: socket.AddressFamily  = socket.AF_INET, type: socket.SocketKind = socket.SOCK_STREAM) -> None:
-        super().__init__(family, type)
-        self.HOST=socket.gethostbyname(socket.gethostname())
-        self.bind((self.HOST,0))
-        self.PORT=self.getsockname()[1]
-        print("Listening on ", self.getsockname())
-        self.acceptingCon=True
-        self.listen()
-        self.acceptCon()
-    def acceptCon(self):
-        while self.acceptingCon:
-            c,addr=self.accept()
-            r=database.execute("SELECT count(*) FROM addresses WHERE addr=?",(addr,))
-            if not r.fetchone()[0]:
-                database.execute("INSERT INTO addresses (addr,Userslotsleft) VALUES (?,1)",(addr,))
-            threading.Thread(target=self.handleUser,args=(c,addr))
-            
-    def login(self,connection,com):
-        c=connection.c
-        response=self.validatecredentials(com)
-        if not response[0]:
-            return (False,response[1],response[2])
-        response=database.execute("SELECT * FROM users WHERE (name=?,password=?)",(com["name"],com["pass"]))
-        data=response.fetchone()
-        if not data:
-            self.returnError(c,"UserNotFound","Username or password not found")
-            return
-        data={"com":"Login","user":com["name"]}
-        data=json.dumps(data)+"\0"
-        c.sendall(data.encode())
-        connection.auth=data[1]
-        connection.name=data[0]
-    def userSignUp(self,connection,com):
-        c=connection.c
-        addr=connection.addr
-        response=self.validatecredentials(com)
-        if not response[0]:
-            return (False,response[1],response[2])
-
-        response=self.createUser(c,1,com["name"],com["pass"],addr)
-        if not response:
-            return (False,"UserExists","The user being created already exists")
-        else:
-            data={"com":"Login","user":com["name"]}
-            data=json.dumps(data)+"\0"
-            c.sendall(data.encode())
-            connection.auth=data[1]
-            connection.name=data[0]
-
-    def validatecredentials(self,com)->tuple[bool,str,str]:
-        if not("pass" in com and "name" in com):
-            return (False,"CredentialsError","Username or Password missing")
-        if not 1<=len(com["pass"])<=50:
-            return (False,"CredentialsError","Password too long")
-        if not 3<=len(com["name"])<=25:
-            return (False,"CredentialsError","Username too long")
-        return (True,"CredentialsSucess","Requirements met")
-    
-
-
-    def createUser(self,auth,name,pasword,addr):
-        try:
-            database.execute("INSERT INTO addresses VALUES (name=?,auth=?,pass=?,originaddress=?)",
-                             (name,auth,pasword,addr)
-                             )
-            database.commit()
-            return True
-        except sqlite3.IntegrityError:
-            database.rollback()
-            return False
+                        s.login(c,self,com)
+            data=coms[-1:][0]
 if __name__=="__main__":
-    s=Server()
+    s=Server(UserHandler)
