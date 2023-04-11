@@ -1,36 +1,36 @@
 from Page_Login import LoginPage
 from Page_Con import ConnectPage
-from NetHandler import netClient
-
-class appNetClient(netClient):
-    def __init__(self,main=None) -> None:
-        self.main=main
-        super().__init__()
-    def disconnect(self):
-        if self.main:
-            self.main.page("connect")
-        return super().disconnect()
+from NetHandler import appNetClient
+import tkinter as tk
+from tkinter import ttk
 
 pagelookup={
-    "main":None,
     ConnectPage.name:ConnectPage,
     LoginPage.name:LoginPage
 }
 
 class mainApp:
     def __init__(self):
+        self.win=tk.Tk()
         self.backproc={}
-        self.curpage=None
+        self.curpage=ConnectPage(self.win,self)
         self.s=appNetClient(self)
         
     def page(self,page):
+        if self.curpage:
+            self.curpage.destroy()
         if page not in pagelookup:
             raise FileNotFoundError(f"Requested page: {page} not in dict")
+        self.curpage=pagelookup[page](self.win,self)
 
-    def handlecommand(self,command):
+    def handleCommand(self,command):
         if command["mod"] in self.backproc:
             self.backproc.handleCommand(command)
         elif command["mod"] == self.curpage.name:
             self.curpage.handleCommand(command)
     def createBackProc(self,name,obj):
         self.backproc[name]=obj
+
+if __name__=="__main__":
+    mainApp()
+    tk.mainloop()

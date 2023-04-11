@@ -15,12 +15,16 @@ class Password(ttk.Frame):
     def get(self):
         return self.entry.get()
 class LoginPage(ttk.Frame):
-    def __init__(self,master=None,main=None,nethandler=None) -> None:
+    name="Plogin"
+    def __init__(self,master=None,main=None) -> None:
         if not master:
             master=tk.Tk()
             master.title("PPPPPPPPPPPPP")
         self.main=main
-        self.s=nethandler
+        if main:
+            self.s=main.s
+        else:
+            self.s=None
         super().__init__(master=master,height=700,width=1300)
         s=ttk.Style(self)
         s.configure(".",font=("Arial",11))
@@ -92,7 +96,7 @@ class LoginPage(ttk.Frame):
             return
         if self.s:
             com={"com":"loginUser","name":name,"pass":password}
-            self.s.send(com)
+            self.s.send(com=com)
             
     def showerror(self,label,text:str,linelim:int):
         newtext=[]
@@ -107,7 +111,7 @@ class LoginPage(ttk.Frame):
         label.config(text=text)
     
     def handleCommand(self,com):
-        pass
+        print(com)
 
 if __name__=="__main__":
     c=LoginPage()

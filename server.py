@@ -48,13 +48,13 @@ class Server(socket.socket):
         c=connection
         response=self.validatecredentials(com)
         if not response[0]:
-            self.clientError(c,"l-"+response[1],"Login")
+            self.clientError(c,"l-"+response[1],"Plogin")
         dataaccess.acquire()
-        response=database.execute("SELECT * FROM users WHERE (name=?,password=?)",(com["name"],com["pass"]))
+        response=database.execute("SELECT * FROM users WHERE ?,?",(com["name"],com["pass"]))
         dataaccess.release()
         data=response.fetchone()
         if not data:
-            self.clientError(c,"l-UserNotFound","Login")
+            self.clientError(c,"l-UserNotFound","Plogin")
             return
         data={"com":"Login","user":com["name"]}
         data=json.dumps(data)+"\0"
@@ -66,11 +66,11 @@ class Server(socket.socket):
         addr=user.addr[0]
         response=self.validatecredentials(com)
         if not response[0]:
-            self.clientError(c,"s-"+response[1],"Login")
+            self.clientError(c,"s-"+response[1],"Plogin")
             return
         response=self.createUser(1,com["name"],com["pass"],addr)
         if not response:
-            self.clientError(c,"s-UserCreationError","Login")
+            self.clientError(c,"s-UserCreationError","Plogin")
             return
         dataaccess.acquire()
         database.execute("UPDATE addresses SET Userslotsleft=0 where addr=?",(addr,))
@@ -136,6 +136,7 @@ class UserHandler:
         s=self.server
         del r
         data=""
+        coms=[""]
         while True:
             try:
                 data+=c.recv(1024).decode()

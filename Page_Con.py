@@ -1,11 +1,14 @@
 import tkinter as tk
 from tkinter import ttk
 import socket
+import threading
 class ConnectPage(ttk.Frame):
+    name="Pconnect"
     def __init__(self,master=None,main=None) -> None:
         if not master:
             master=tk.Tk()
         self.main=main
+        
         super().__init__(master=master,height=700,width=1000)
         self.pack(fill="both",expand=True)
         inputmenu=ttk.Frame(self,width=400,height=200)
@@ -33,12 +36,16 @@ class ConnectPage(ttk.Frame):
             return
         try:
             if self.main:
-                self.s.connect((HOST, PORT))
+                self.main.s.connect(HOST, PORT)
         except socket.error as error:
             self.showerror(self.errtxt,f"{error} for port:{PORT}",30)
             return
         if self.main:
-            self.main.page("main")
+            threading.Thread(
+                target=self.main.s.listen,
+                args=(self.main.handleCommand,)
+            )
+            self.main.page("Plogin")
 
     def showerror(self,label,text:str,linelim:int):
         text=[text[i:i+linelim] for i in range(0, len(text), linelim)]

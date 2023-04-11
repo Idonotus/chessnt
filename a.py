@@ -1,2 +1,0 @@
-import Chess
-Chess.makeclassic()
