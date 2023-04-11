@@ -34,7 +34,6 @@ class Server(socket.socket):
     def acceptCon(self):
         while self.acceptingCon:
             c,addr=self.accept()
-            c.sendall("aaaaa".encode())
             dataaccess.acquire()
             r=database.execute("SELECT count(*) FROM addresses WHERE addr=?",(addr[0],))
             if not r.fetchone()[0]:
@@ -50,17 +49,19 @@ class Server(socket.socket):
         if not response[0]:
             self.clientError(c,"l-"+response[1],"Plogin")
         dataaccess.acquire()
-        response=database.execute("SELECT * FROM users WHERE ?,?",(com["name"],com["pass"]))
+        response=database.execute("SELECT * FROM users WHERE name=? AND pass=?",(com["name"],com["pass"]))
         dataaccess.release()
         data=response.fetchone()
+        
         if not data:
             self.clientError(c,"l-UserNotFound","Plogin")
             return
-        data={"com":"Login","user":com["name"]}
-        data=json.dumps(data)+"\0"
-        c.sendall(data.encode())
         user.auth=data[1]
         user.name=data[0]
+        data={"com":"Login","user":com["name"],"mod":"UserAuth"}
+        data=json.dumps(data)+"\0"
+        c.sendall(data.encode())
+        
     def userSignUp(self,connection,user,com):
         c=connection
         addr=user.addr[0]
@@ -76,7 +77,7 @@ class Server(socket.socket):
         database.execute("UPDATE addresses SET Userslotsleft=0 where addr=?",(addr,))
         database.commit()
         dataaccess.release()
-        data={"com":"Login","user":com["name"]}
+        data={"com":"Login","user":com["name"],"mod":"UserAuth"}
         data=json.dumps(data)+"\0"
         c.sendall(data.encode())
         user.auth=data[1]
@@ -109,7 +110,7 @@ class Server(socket.socket):
         if mod==None:
             mod="main"
         data={"com":"raiseError",
-                "data":mod,
+                "mod":mod,
                 "type":errortype}
         data=json.dumps(data)+"\0"
         c.sendall(data.encode())
@@ -122,14 +123,14 @@ class Server(socket.socket):
 class UserHandler:
     def __init__(self,c:socket.socket,addr,server:Server) -> None:
         self.user=None
-        self.auth=None
+        self.auth=-1
         self.c=c
         self.addr=addr
         self.server=server
     def start(self):
         dataaccess.acquire()
         r=database.execute("SELECT Userslotsleft FROM addresses WHERE addr=?",(self.addr[0],))
-        canCreateUser=0<r.fetchone()[0]
+        self.canCreateUser=0<r.fetchone()[0]
         database.rollback()
         dataaccess.release()
         c=self.c
@@ -152,11 +153,18 @@ class UserHandler:
             print(data)
             for com in coms[:-1]:
                 com=json.loads(com)
-                if not self.user:
-                    if com["com"]=="createUser" and canCreateUser:
-                        s.userSignUp(c,self,com)
-                    if com["com"]=="loginUser":
-                        s.login(c,self,com)
+                self.redirectCommand(com)
             data=coms[-1:][0]
+    def redirectCommand(self,com):
+        c=self.c
+        s=self.server
+        if com["mod"]=="userauth":
+            if not self.user:
+                if com["com"]=="createUser" and self.canCreateUser:
+                    s.userSignUp(c,self,com)
+                if com["com"]=="loginUser":
+                    s.login(c,self,com)
+
+                
 if __name__=="__main__":
     s=Server(UserHandler)

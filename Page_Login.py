@@ -1,5 +1,11 @@
 import tkinter as tk
 from tkinter import ttk
+class UserAuth:
+    def __init__(self,main) -> None:
+        self.main=main
+    def handleCommand(self,com):
+        if com["com"]=="Login":
+            self.main.page("main")
 class Password(ttk.Frame):
     def __init__(self, master = None,width=0) -> None:
         super().__init__(master, width=width)
@@ -22,6 +28,7 @@ class LoginPage(ttk.Frame):
             master.title("PPPPPPPPPPPPP")
         self.main=main
         if main:
+            main.createBackProc("UserAuth",UserAuth(main))
             self.s=main.s
         else:
             self.s=None
@@ -73,29 +80,30 @@ class LoginPage(ttk.Frame):
             self.showerror(self.Sigerr,"CredentialsError: Passwords dont match",20)
             return
         name=self.Suser.get()
-        if not 3<=len(name)<=25:
-            self.showerror(self.Sigerr,"CredentialsError: Username invalid",20)
+        if not 3<=len(name)<=25: 
+            self.showerror(self.Sigerr,"CredentialsError: Username has invalid length",20)
             return
         elif not 1<=len(password)<=50:
-            self.showerror(self.Sigerr,"CredentialsError: Password invalid",20)
+            self.showerror(self.Sigerr,"CredentialsError: Password has invalid length",20)
             return
         if self.s:
-            self.s.send(com="createUser",name=name,password=password)
+            com={"com":"createUser","name":name,"pass":password,"mod":"userauth"}
+            self.s.send(com)
 
     def Login(self):
         password=self.Lpass.get()
         name=self.Luser.get()
         valid=False
         if not 3<=len(name)<=25:
-            self.showerror(self.Logerr,"CredentialsError: Username invalid",20)
+            self.showerror(self.Logerr,"CredentialsError: Username has invalid length",20)
         elif not 1<=len(password)<=50:
-            self.showerror(self.Logerr,"CredentialsError: Password invalid",20)
+            self.showerror(self.Logerr,"CredentialsError: Password has invalid length",20)
         else:
             valid=True
         if not valid:
             return
         if self.s:
-            com={"com":"loginUser","name":name,"pass":password}
+            com={"com":"loginUser","name":name,"pass":password,"mod":"userauth"}
             self.s.send(com=com)
             
     def showerror(self,label,text:str,linelim:int):
@@ -112,6 +120,9 @@ class LoginPage(ttk.Frame):
     
     def handleCommand(self,com):
         print(com)
+
+
+
 
 if __name__=="__main__":
     c=LoginPage()

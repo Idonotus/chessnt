@@ -3,6 +3,9 @@ from Page_Con import ConnectPage
 from NetHandler import appNetClient
 import tkinter as tk
 from tkinter import ttk
+import logging
+logging.basicConfig(format="[%(levelname)s] %(message)s",level=logging.DEBUG)
+
 
 pagelookup={
     ConnectPage.name:ConnectPage,
@@ -24,8 +27,10 @@ class mainApp:
         self.curpage=pagelookup[page](self.win,self)
 
     def handleCommand(self,command):
+        if "mod" not in command:
+            return
         if command["mod"] in self.backproc:
-            self.backproc.handleCommand(command)
+            self.backproc[command["mod"]].handleCommand(command)
         elif command["mod"] == self.curpage.name:
             self.curpage.handleCommand(command)
     def createBackProc(self,name,obj):
@@ -33,4 +38,5 @@ class mainApp:
 
 if __name__=="__main__":
     mainApp()
+    logging.info("Starting app")
     tk.mainloop()

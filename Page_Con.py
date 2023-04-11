@@ -44,7 +44,7 @@ class ConnectPage(ttk.Frame):
             threading.Thread(
                 target=self.main.s.listen,
                 args=(self.main.handleCommand,)
-            )
+            ).start()
             self.main.page("Plogin")
 
     def showerror(self,label,text:str,linelim:int):
