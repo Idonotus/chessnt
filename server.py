@@ -9,9 +9,9 @@ database.execute("CREATE TABLE IF NOT EXISTS addresses (addr TEXT UNIQUE, Usersl
 database.commit()
 dataaccess=threading.Lock()
 # --------TO DO---------
-# +Login and leave
-# 1.CHESS
-# 2.CHAT
+# +Login and leave#
+# 1.CHAT
+# 2.CHESS
 # 3.MODERATION
 # 4.User stats
 #
@@ -73,10 +73,9 @@ class Server(socket.socket):
         if not response:
             self.clientError(c,"s-UserCreationError","Plogin")
             return
-        dataaccess.acquire()
-        database.execute("UPDATE addresses SET Userslotsleft=0 where addr=?",(addr,))
-        database.commit()
-        dataaccess.release()
+        with dataaccess:
+            database.execute("UPDATE addresses SET Userslotsleft=0 where addr=?",(addr,))
+            database.commit()
         data={"com":"Login","user":com["name"],"mod":"UserAuth"}
         data=json.dumps(data)+"\0"
         c.sendall(data.encode())

@@ -2,13 +2,14 @@ import socket
 import json
 import logging
 import time
-
+import threading
 
 class netClient:
     def __init__(self) -> None:
         self.socket=socket.socket()
         self.connectdata=None
-
+        self.online=False
+        self.queue=[]
     def listen(self,handlerfunc):
         data=""
         while True:
@@ -25,16 +26,20 @@ class netClient:
                 break
             sepdata=data.split("\0")
             for msg in sepdata:
-                handlerfunc(msg)
+                threading.Thread(target=handlerfunc,args=(msg,)).start()
             data=data[-1:][0]
 
     def send(self,data:str):
+        if not self.online:
+            self.queue.append(data)
+            return
         self.socket.sendall((data+"\0").encode())
 
     def assign(self,socket):
         self.socket=socket
     
     def handleSuddenDisc(self):
+        self.online=False
         logging.info("Lost connection: attemping reconnect")
         self.socket.close()
         self.socket=socket.socket()
@@ -47,7 +52,9 @@ class netClient:
                 self.connect(*self.connectdata)
                 logging.debug(f"Attempt {x}:success")
                 logging.info("Reconnect sucessful")
+                self.online=True
                 failure=False
+                self.handleQueue()
                 break
             except socket.error:
                 time.sleep(wt)
@@ -65,10 +72,22 @@ class netClient:
         self.socket.close()
         self.socket=socket.socket()
         self.connectdata=None
+        self.online=False
+
+    def handleQueue(self):
+        q=self.queue
+        self.queue=[]
+        for data in q:
+            self.send(data)
+            if data in self.queue:
+                logging.warn("Queue not cleared")
+                self.queue=q
+                break
 
     def connect(self,host,port):
         self.socket.connect((host,port))
         self.connectdata=(host,port)
+        self.online=True
 
 class appNetClient(netClient):
     def __init__(self,main=None) -> None:
