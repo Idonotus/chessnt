@@ -1,5 +1,13 @@
 import tkinter as tk
 from tkinter import ttk
+ERRORDEF = {
+    "CreationUnavailable":"Already created a user",
+    "UserCreationError":"User already exists",
+    "BlankError":"Username or password not entered",
+    "PassLengthError":"Passwords gave to be between 1",
+    "NameLengthError":"Username or password too long or sgor",
+    "UserNotFound":"User not found"
+}
 class UserAuth:
     def __init__(self,main) -> None:
         self.main=main
@@ -119,7 +127,15 @@ class LoginPage(ttk.Frame):
         label.config(text=text)
     
     def handleCommand(self,com):
-        print(com)
+        if com["com"]=="raiseError":
+            t=com["t"]
+            t=t.split("-")
+            if t[1] not in ERRORDEF:
+                return
+            if t[0]=="s":
+                self.showerror(self.Sigerr,f"{t[1]}: {ERRORDEF[t[1]]}")
+            elif t[0]=="l":
+                self.showerror(self.Logerr,f"{t[1]}: {ERRORDEF[t[1]]}")
 
 
 

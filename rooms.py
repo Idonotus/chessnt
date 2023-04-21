@@ -6,32 +6,34 @@ class Room:
         self.private=private
         self.password=password
         self.userlist={}
-        self.roomlock=threading.Lock()
 
     def join(self,userobj):
-        with self.roomlock:
-            self.userlist[userobj.name]=userobj
+        self.userlist[userobj.name]=userobj
 
     def leave(self,userobj):
-        with self.roomlock:
-            if userobj.name not in self.userlist:
-                return
-            self.userlist.pop(userobj.name)
+        if userobj.name not in self.userlist:
+            return
+        self.userlist.pop(userobj.name)
+        
+        com={"com":"RoomDisconnect","id":self.name,"mod":"room"}
     
     def inactive(self):
         return len(self.userlist)>=1
 
     def broadcast(self,com,name=None):
-        with self.roomlock:
-            for u in self.userlist:
-                if u.name!=name:
-                    u.send(com)
+        for u in self.userlist:
+            if u.name!=name:
+                u.send(com)
     
+    def close(self):
+        for user in self.userlist.items():
+            c=user[1].c
+            com={"com":"RoomDisconnect","id":self.name,"mod":"room"}
+
     def sendTo(self,com,name):
-        with self.roomlock:
-            if name not in self.userlist:
-                return
-            self.userlist[name].send(com)
+        if name not in self.userlist:
+            return
+        self.userlist[name].send(com)
 
     def AuthSee(self):
         return not self.private
@@ -75,18 +77,16 @@ class chessRoom(Room):
 
 class RoomServer:
     def __init__(self) -> None:
-        self.roomlock=threading.Lock()
         self.roomindex={}
         self.userindex={}
 
     def createRoom(self, roomcls:Room, Id, **kwargs):
-        with self.roomlock:
-            if not isinstance(roomcls,Room):
-                raise TypeError("NOT A ROOM YOU ***********************")
-            if Id not in self.roomindex:
-                self.roomindex[Id]=roomcls(Id, **kwargs)
-            else:
-                raise FileExistsError
+        if not isinstance(roomcls,Room):
+            raise TypeError("NOT A ROOM YOU ***********************")
+        if Id not in self.roomindex:
+            self.roomindex[Id]=roomcls(Id, **kwargs)
+        else:
+            raise FileExistsError
 
     def join(self,userobj,roomId:str):
         if userobj.name not in self.userindex:
@@ -95,13 +95,12 @@ class RoomServer:
         self.roomindex[roomId].join(userobj)
 
     def leave(self,userobj,roomId):
-        with self.roomlock:
-            if userobj.name not in self.userindex:
-                return
-            userrooms:list=self.userindex[userobj.name]
-            if roomId in userrooms:
-                userrooms.remove(roomId)
-            self.roomindex[roomId].leave(userobj)
+        if userobj.name not in self.userindex:
+            return
+        userrooms:list=self.userindex[userobj.name]
+        if roomId in userrooms:
+            userrooms.remove(roomId)
+        self.roomindex[roomId].leave(userobj)
 
     def leaveall(self,userobj):
         if userobj.name not in self.userindex:

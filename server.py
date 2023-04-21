@@ -3,6 +3,7 @@ import threading
 import json
 import sqlite3
 import errno
+import logging
 database=sqlite3.connect("server.db",check_same_thread=False)
 database.execute("CREATE TABLE IF NOT EXISTS users (name TEXT UNIQUE, auth INT, pass TEXT, originaddress TEXT)")
 database.execute("CREATE TABLE IF NOT EXISTS addresses (addr TEXT UNIQUE, Userslotsleft INT)")
@@ -28,9 +29,26 @@ class Server(socket.socket):
         print("Listening on ", self.getsockname())
         self.acceptingCon=True
         self.handler=handler
+        self.exequeue=[]
+        threading.Thread(target=self.executioner,daemon=True).start()
         self.listen()
         self.acceptCon()
-        
+
+    def executioner(self):
+        while True:
+            if not len(self.exequeue)>0:
+                continue
+            com=self.exequeue[0]
+            try:
+                com["com"](*com["args"],**com["kwargs"])
+            except Exception as e:
+                logging.exception()
+            finally:
+                self.exequeue.pop(0)
+
+    def addqueue(self,command,*args,**kwargs):
+        self.exequeue.append({"com":command,"args":args,"kwargs":kwargs})
+
     def acceptCon(self):
         while self.acceptingCon:
             c,addr=self.accept()
@@ -63,6 +81,12 @@ class Server(socket.socket):
         c.sendall(data.encode())
         
     def userSignUp(self,connection,user,com):
+        dataaccess.acquire()
+        r=database.execute("SELECT Userslotsleft FROM addresses WHERE addr=?",(self.addr[0],))
+        if 0<r.fetchone()[0]:
+            self.clientError(c,"s-CreationUnavailable","Plogin")
+        database.rollback()
+        dataaccess.release()
         c=connection
         addr=user.addr[0]
         response=self.validatecredentials(com)
@@ -86,9 +110,9 @@ class Server(socket.socket):
         if not("pass" in com and "name" in com):
             return (False,"BlankError")
         if not 1<=len(com["pass"])<=50:
-            return (False,"LengthError")
+            return (False,"PassLengthError")
         if not 3<=len(com["name"])<=25:
-            return (False,"LengthError")
+            return (False,"NameLengthError")
         return (True,"CredentialsSucess")
     
     def createUser(self,auth,name,pasword,addr):
@@ -127,11 +151,6 @@ class UserHandler:
         self.addr=addr
         self.server=server
     def start(self):
-        dataaccess.acquire()
-        r=database.execute("SELECT Userslotsleft FROM addresses WHERE addr=?",(self.addr[0],))
-        self.canCreateUser=0<r.fetchone()[0]
-        database.rollback()
-        dataaccess.release()
         c=self.c
         s=self.server
         del r
@@ -154,15 +173,18 @@ class UserHandler:
                 com=json.loads(com)
                 self.redirectCommand(com)
             data=coms[-1:][0]
+    
     def redirectCommand(self,com):
         c=self.c
         s=self.server
         if com["mod"]=="userauth":
-            if not self.user:
-                if com["com"]=="createUser" and self.canCreateUser:
-                    s.userSignUp(c,self,com)
+            if com["com"] in ["createUser","loginUser"]:
+                if not self.user:
+                    s.clientError(c,"LoginConfusion")
+                if com["com"]=="createUser":
+                    s.addqueue(s.userSignUp,c,self,com)
                 if com["com"]=="loginUser":
-                    s.login(c,self,com)
+                    s.addqueue(s.login,c,self,com)
 
                 
 if __name__=="__main__":
