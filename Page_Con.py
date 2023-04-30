@@ -20,7 +20,7 @@ class ConnectPage(ttk.Frame):
         ttk.Label(inputmenu,text="Port").grid(sticky="W",row=4)
         self.iport.grid(sticky="W",pady=5,padx=10,row=5)
         ttk.Frame(inputmenu,width=400).grid()
-        self.errtxt = tk.Label(inputmenu,fg="red")
+        self.errtxt = ttk.Label(inputmenu,foreground="red")
         self.errtxt.grid(row=6,column=0)
         ttk.Button(inputmenu,text="Connect",command=self.server_connect).grid(row=6,column=0,sticky="E")
 
