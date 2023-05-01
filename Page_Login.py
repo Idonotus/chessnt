@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk,messagebox
 from WigExtras import PasswordEntry,NameEntry,SecondaryPass
 ERRORDEF = {
     "CreationUnavailable":"Already created a user",
@@ -99,14 +99,11 @@ class LoginPage(ttk.Frame):
     
     def handleCommand(self,com):
         if com["com"]=="raiseError":
-            t=com["t"]
+            t=com["type"]
             t=t.split("-")
             if t[1] not in ERRORDEF:
                 return
-            if t[0]=="s":
-                self.showerror(self.Sigerr,f"{t[1]}: {ERRORDEF[t[1]]}")
-            elif t[0]=="l":
-                self.showerror(self.Logerr,f"{t[1]}: {ERRORDEF[t[1]]}")
+            messagebox.showerror(message=f"{ERRORDEF[t[1]]}")
 
 
 

@@ -98,8 +98,9 @@ class appNetClient(netClient):
         sepdata=[""]
         while True:
             try:
-                data+=self.socket.recv(1024).decode()
-                logging.debug(f"Recieved data:{data}")
+                
+                x=self.socket.recv(1024).decode()
+                data+=x
             except socket.error:
                 r=self.handleSuddenDisc()
                 if r:
@@ -110,10 +111,17 @@ class appNetClient(netClient):
                 r=self.disconnect()
                 break
             sepdata=data.split("\0")
+            
             for msg in sepdata[:-1]:
-                msg=json.loads(msg)
+                if msg=="":
+                    continue
+                logging.debug(f"Recieved command:{msg}")
+                try:
+                    msg=json.loads(msg)
+                except json.decoder.JSONDecodeError:
+                    logging.error(f"Failed to decode: {msg}")
                 handlerfunc(msg)
-            data=data[-1:][0]
+            data=sepdata[-1:][0]
     
     def send(self, com:str|dict, **kwargs):
         if isinstance(com,dict) and len(kwargs)==0:

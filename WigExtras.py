@@ -46,9 +46,7 @@ class PasswordEntry(ttk.Frame):
         f.grid(row=0,column=0)
         self.errlabel=ErrLabel(self,font=("Helvetica",10),foreground="red")
         self.errlabel.grid(row=1,column=0)
-        svar=tk.StringVar(self,value=text)
-        print(svar.get())
-        self.entry=ValidateEntry(f,textvariable=svar,width=width,show="*",errcommand=self.validatePassword,errlabel=self.errlabel)
+        self.entry=ValidateEntry(f,width=width,show="*",errcommand=self.validatePassword,errlabel=self.errlabel)
         self.entry.grid(column=0,row=0)
 
         ttk.Checkbutton(f,variable=self.show,command=self.toggleView).grid(column=1,row=0)

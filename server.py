@@ -24,7 +24,7 @@ class Server(socket.socket):
     def __init__(self, handler, family: socket.AddressFamily  = socket.AF_INET, type: socket.SocketKind = socket.SOCK_STREAM) -> None:
         super().__init__(family, type)
         self.HOST=socket.gethostbyname(socket.gethostname())
-        self.bind((self.HOST,40000))
+        self.bind((self.HOST,40001))
         self.PORT=self.getsockname()[1]
         print("Listening on ", self.getsockname())
         self.acceptingCon=True
@@ -129,12 +129,13 @@ class Server(socket.socket):
         dataaccess.release()
         return success
         
-    def clientError(self,c,errortype,mod=None):
+    def clientError(self,c,errortype,mod=None,**kwargs):
         if mod==None:
             mod="main"
         data={"com":"raiseError",
                 "mod":mod,
                 "type":errortype}
+        data.update(kwargs)
         data=json.dumps(data)+"\0"
         c.sendall(data.encode())
 
@@ -153,7 +154,6 @@ class UserHandler:
     def start(self):
         c=self.c
         s=self.server
-        del r
         data=""
         coms=[""]
         while True:
@@ -177,15 +177,19 @@ class UserHandler:
     def redirectCommand(self,com):
         c=self.c
         s=self.server
+        if not self.user and com["mod"]!="userauth":
+            s.clientError(c,"NotAuth",reason="NoLogin")
+
         if com["mod"]=="userauth":
             if com["com"] in ["createUser","loginUser"]:
-                if not self.user:
-                    s.clientError(c,"LoginConfusion")
+                if self.user:
+                    s.clientError(c,"NotAuth",reason="LoggedIn")
                 if com["com"]=="createUser":
                     s.addqueue(s.userSignUp,c,self,com)
                 if com["com"]=="loginUser":
                     s.addqueue(s.login,c,self,com)
-
+            #else:
+                #
                 
 if __name__=="__main__":
     s=Server(UserHandler)
