@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-from Entries import PasswordEntry,NameEntry
+from WigExtras import PasswordEntry,NameEntry,SecondaryPass
 ERRORDEF = {
     "CreationUnavailable":"Already created a user",
     "UserCreationError":"User already exists",
@@ -58,10 +58,8 @@ class LoginPage(ttk.Frame):
         self.Suser=NameEntry(s,width=20)
         self.Suser.grid(row=1,pady=10,padx=10)
         ttk.Label(s,text="Password").grid(row=2)
-        self.Spass=PasswordEntry(s,20)
+        self.Spass=SecondaryPass(s,20)
         self.Spass.grid(padx=10,pady=10,row=3)
-        self.Sverif=PasswordEntry(s,20)
-        self.Sverif.grid(padx=10,pady=10,row=4)
         ttk.Button(s,text="Sign up",command=self.SignUp).grid(row=5)
         self.Sigerr=ttk.Label(s)
         self.Sigerr.grid(row=6)
@@ -70,34 +68,19 @@ class LoginPage(ttk.Frame):
         self.pack()
 
     def SignUp(self):
+        if not (self.Spass.isvalid() and self.Suser.isvalid()):
+            return
         password=self.Spass.get()
-        verification=self.Sverif.get()
-        if password!=verification:
-            self.showerror(self.Sigerr,"CredentialsError: Passwords dont match",20)
-            return
         name=self.Suser.get()
-        if not 3<=len(name)<=25: 
-            self.showerror(self.Sigerr,"CredentialsError: Username has invalid length",20)
-            return
-        elif not 1<=len(password)<=50:
-            self.showerror(self.Sigerr,"CredentialsError: Password has invalid length",20)
-            return
         if self.s:
             com={"com":"createUser","name":name,"pass":password,"mod":"userauth"}
             self.s.send(com)
 
     def Login(self):
+        if not (self.Lpass.isvalid() and self.Luser.isvalid()):
+            return
         password=self.Lpass.get()
         name=self.Luser.get()
-        valid=False
-        if not 3<=len(name)<=25:
-            self.showerror(self.Logerr,"CredentialsError: Username has invalid length",20)
-        elif not 1<=len(password)<=50:
-            self.showerror(self.Logerr,"CredentialsError: Password has invalid length",20)
-        else:
-            valid=True
-        if not valid:
-            return
         if self.s:
             com={"com":"loginUser","name":name,"pass":password,"mod":"userauth"}
             self.s.send(com=com)
