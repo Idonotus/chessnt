@@ -59,7 +59,7 @@ class Server(socket.socket):
                 database.commit()
             dataaccess.release()
             h=self.handler(c,addr,self)
-            threading.Thread(target=h.start).start()
+            threading.Thread(target=h.start,daemon=True).start()
             
     def login(self,connection,user,com):
         c=connection
@@ -81,14 +81,14 @@ class Server(socket.socket):
         c.sendall(data.encode())
         
     def userSignUp(self,connection,user,com):
-        dataaccess.acquire()
-        r=database.execute("SELECT Userslotsleft FROM addresses WHERE addr=?",(self.addr[0],))
-        if 0<r.fetchone()[0]:
-            self.clientError(c,"s-CreationUnavailable","Plogin")
-        database.rollback()
-        dataaccess.release()
         c=connection
         addr=user.addr[0]
+        with dataaccess:
+            r=database.execute("SELECT Userslotsleft FROM addresses WHERE addr=?",(addr,))
+            database.rollback()
+        if 0<r.fetchone()[0]:
+            self.clientError(c,"s-CreationUnavailable","Plogin")
+            return
         response=self.validatecredentials(com)
         if not response[0]:
             self.clientError(c,"s-"+response[1],"Plogin")
