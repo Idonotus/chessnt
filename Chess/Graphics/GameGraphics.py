@@ -2,6 +2,7 @@ from ..vectormath import *
 from . import PieceSprites
 import warnings
 import tkinter as tk
+import timeit
 class Gui(tk.Canvas):
     """Handles chess GUI/user interaction"""
     def __init__(self, master, width=8,height=8,tile=50) -> None:
@@ -17,6 +18,7 @@ class Gui(tk.Canvas):
         self.data=[]
         self.teamcolours=("#FF0000","#0000FF")
         self.tiles=[]
+        self.game=None
         self.logic=None
         self.ROTATION=0
         self.draggable=None 
@@ -52,7 +54,14 @@ class Gui(tk.Canvas):
             return
         self.data[x][y]=self.PIECES[name](self,self.TILESIZE,x=x,y=y,team=team)
     
-    
+    def settile(self,x,y,name=None,team=None):
+        if self.data[x][y]:
+                self.data[x][y].delete()
+        if name is None:
+            return
+        if team is None:
+            return
+        self.addpiece(name,x,y,team)
 
     def localrotate(self,rotation,x,y,inv=False):
         key=vector(1,1)
@@ -82,10 +91,19 @@ class Gui(tk.Canvas):
                 fill=self.movehighlights[int(pos.x+pos.y)%len(self.movehighlights)]
                 self.itemconfigure(self.tiles[int(pos.x)][int(pos.y)],fill=fill)
             highlight.append(pos)
-
+    
+    def applychanges(self,changes):
+        a=timeit.timeit()
+        for item in changes:
+            if item[1]:
+                self.settile(item[0][0],item[0][1],item[1].sname,item[1].team)
+            else:
+                self.settile(item[0][0],item[0][1],None)
+        print(a)
     def end(self,team):
         p=tk.Toplevel()
         tk.Label(p,text=f"Team {team+1} lost").pack()
+
     def placepiece(self,image,x,y,Piece):
         x,y=self.localrotate(self.ROTATION,x,y)
         xpos=x*self.TILESIZE
@@ -114,13 +132,13 @@ class Gui(tk.Canvas):
         y=int(y)
         x=int(x)
         x,y=self.localrotate(self.ROTATION,x,y,True)
-        a="return"
-        pos2=vector(x,y)
-        if self.logic:
-            a=self.logic.movepiece(widget.position,pos2)
-        self.draggable.move(a,pos2)
+        self.draggable.returnpiece()
         self.draggable=None         
         self.removehighlight(self.movehighlight)
+        pos2=vector(x,y)
+        if self.logic and self.game:
+            self.game.makemove(widget.position,pos2)
+        
     def drag_start(self,event):
         tilex=event.x//self.TILESIZE
         tiley=event.y//self.TILESIZE
@@ -129,9 +147,8 @@ class Gui(tk.Canvas):
             if not self.data[tilex][tiley]:
                 return
             self.draggable=self.data[tilex][tiley]
-            w=self.draggable
             if self.logic:
-                p=self.logic.getpiece(tilex,tiley)
+                p=self.logic.getpiece(x=tilex,y=tiley)
                 self.highlighttiles(self.movehighlight,p.availmoves+p.availtakes)
             self.tag_raise(self.draggable.image)
 

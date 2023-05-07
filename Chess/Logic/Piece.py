@@ -1,5 +1,7 @@
 from ..vectormath import *
-class Piece():
+import logging
+from typing import Self
+class Piece:
     def __init__(self,logic,x=0,y=0,team=0):
         self.logic=logic
         self.position=vector(x,y)
@@ -25,7 +27,9 @@ class Piece():
         data[int(move.x)][int(move.y)]=self
         self.position=move
         return a
-        
+
+    def canmove(self,move):
+        return move in self.availmoves or move in self.availtakes
 
     def takepiece(self,x,y):
         self.board.data[x][y].delete()
@@ -43,14 +47,16 @@ class Piece():
 
     def updateMoves(self,boarddata,cc):
         self.erasemoves()
-        if self.team in self.logic.teamturn:
-            self.availmoves,self.availtakes=self.getavailmoves(boarddata,cc)
+        self.availmoves,self.availtakes=self.getavailmoves(boarddata,cc)
 
     def validatecheck(self,availmoves,availtakes,cc=False):
         if cc:
             availmoves=self.checkcheck(availmoves)
             availtakes=self.checkcheck(availtakes)
         return availmoves,availtakes
+
+    def getavailmoves(self,*args,**kwargs):
+        logging.error("Class has not overwritten getmoves functionality")
 
     def checkcheck(self,moves):
         data=self.logic.makecopy()
@@ -71,3 +77,8 @@ class Piece():
                 safemoves.append(move)
             data[int(move.x)][int(move.y)]=takenpiece
         return safemoves
+
+    def __eq__(self, __value: Self) -> bool:
+        if not isinstance(__value,type(self)):
+            return
+        return (self.position,self.team)==(__value.position,__value.team)

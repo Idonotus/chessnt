@@ -4,12 +4,15 @@ from ..vectormath import *
 
 
 class Pawn(Piece):
+    sname="pawn"
     def __init__(self,logic, x=0, y=0,direction=None,team=0) -> None:
         if not direction:
             if team==1:
                 direction=2
             else:
                 direction=0
+        else:
+            direction%=4
         self.moves=(vector(0,1).rot90(direction),)
         self.takes=(vector(1,1).rot90(direction),vector(-1,1).rot90(direction))
         self.startmove=(vector(0,2).rot90(direction),)
@@ -51,21 +54,16 @@ class Pawn(Piece):
         self.logic.addpiece(int(move.x),int(move.y),"queen",self.team)
         return a
 class CowardPawn(Pawn):
+    sname="pawn"
     #an inside joke that the pawn instead of promoting would just turn around
     def move(self,move,data):
         a=super().move(move,data)
-        if a=="return":
-            return a
-        if len(self.startmove)!=0:
-            self.startmove=()
-        m=move+self.moves[0]
-        x=m.x
-        y=m.y
-        if self.logic.validatemove(x,y):
-            return a
-        self.logic.addpiece(int(move.x),int(move.y),"cpawn",self.team,direction=self.direction+2)
+        if isinstance(a,list):
+            if a[-1]=="promote":
+                self.logic.addpiece(int(move.x),int(move.y),"cpawn",self.team,direction=self.direction+2)
         return a        
 class Rook(Piece):
+    sname="rook"
     def __init__(self, logic, x=0, y=0, team=0) -> None:
         self.lines=vector(0,1).all90()
         super().__init__(logic, x, y, team)
@@ -86,6 +84,7 @@ class Rook(Piece):
         return super().validatecheck(availmoves,availtakes,cc)
 
 class King(Piece):
+    sname="king"
     def __init__(self,logic,x=0, y=0,team=0) -> None:
         self.moves=vector(0,1).all90()+vector(1,1).all90()
         logic.teams[team].kings.append(self)
@@ -129,6 +128,7 @@ class King(Piece):
         return safemoves
 
 class Bishop(Piece):
+    sname="bishop"
     def __init__(self, logic, x=0, y=0, team=0) -> None:
         self.lines=vector(1,1).all90()
         super().__init__(logic, x, y, team)
@@ -149,6 +149,7 @@ class Bishop(Piece):
         return super().validatecheck(availmoves,availtakes,cc)
 
 class Queen(Piece):
+    sname="queen"
     def __init__(self, logic, x=0, y=0, team=0) -> None:
         self.lines=vector(1,1).all90()+vector(0,1).all90()
         super().__init__(logic, x, y, team)
@@ -169,6 +170,7 @@ class Queen(Piece):
         return super().validatecheck(availmoves,availtakes,cc)
 
 class Knight(Piece):
+    sname="knight"
     def __init__(self, logic, x=0, y=0, team=0) -> None:
         self.moves=vector(1,2).all90()+vector(-1,2).all90()
         super().__init__(logic, x, y, team)

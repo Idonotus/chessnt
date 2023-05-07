@@ -21,12 +21,19 @@ class Game:
         self.gui.pack()
         self.logic=logic.Logic(width,height,2,self)
         self.gui.logic=self.logic
+        self.gui.game=self
         self.conductor=conductor.Conductor([0,1])
         self.conductor.logic=self.logic
         self.end=False
     def addpiece(self,name,x,y,team,**kwargs):
         self.logic.addpiece(x=x,y=y,name=name,team=team,**kwargs)
         self.gui.addpiece(x=x,y=y,name=name,team=team)
+    def makemove(self,pos1,pos2):
+        r=self.logic.movepiece(pos1,pos2)
+        if r is False:
+            return
+        self.gui.applychanges(r)
+        self.endturn()
     def endturn(self):
         if self.end:
             return
@@ -34,9 +41,9 @@ class Game:
         if self.end:
             return
         self.conductor.newturn()
-        self.logic.updateallmoves(teams=[0,1])
+        self.logic.updateallmoves()
     def start(self):        
-        self.logic.updateallmoves(teams=[0,1])
+        self.logic.updateallmoves()
     def teamlose(self,team):
         self.gui.end(team)
         self.conductor.end()
