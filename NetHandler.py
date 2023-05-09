@@ -33,7 +33,10 @@ class netClient:
         if not self.online:
             self.queue.append(data)
             return
-        self.socket.sendall((data+"\0").encode())
+        try:
+            self.socket.sendall((data+"\0").encode())
+        except socket.error as e:
+            logging.error(f"Socket error: {e}")
 
     def assign(self,socket):
         self.socket=socket
@@ -100,6 +103,7 @@ class appNetClient(netClient):
             try:
                 
                 x=self.socket.recv(1024).decode()
+                logging.info(f"Recieved data:{x}")
                 data+=x
             except socket.error:
                 r=self.handleSuddenDisc()
@@ -107,15 +111,13 @@ class appNetClient(netClient):
                     continue
                 else:
                     break
-            if data==sepdata[-1:]:
-                r=self.disconnect()
+            if data==sepdata[-1:][0]:
+                logging.info("Socket closed handling disconnect")
+                self.disconnect()
                 break
             sepdata=data.split("\0")
             
             for msg in sepdata[:-1]:
-                if msg=="":
-                    continue
-                logging.debug(f"Recieved command:{msg}")
                 try:
                     msg=json.loads(msg)
                 except json.decoder.JSONDecodeError:

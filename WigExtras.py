@@ -1,12 +1,52 @@
 import tkinter as tk
 from tkinter import ttk
 
+class ListBox(ttk.Frame):
+    def __init__(self,master,height=0,width=0):
+        super().__init__(master,height=height,width=width)
+        self.grid_columnconfigure(0,weight=1)
+        self.grid_rowconfigure(0,weight=1)
+        self.c=tk.Canvas(self,background="Red")
+        self.c.grid(row=0,column=0,sticky="NEWS")
+        self.scroll=ttk.Scrollbar(self,command=self.c.yview)
+        self.scroll.grid(row=0,column=1,sticky="NS")
+        self.listframe=ttk.Frame(self.c)
+        self.c.create_window((0,0),window=self.listframe,anchor="nw",tags="lframe")
+        self.c.bind("<Configure>",lambda e: self.c.itemconfig("lframe",width=e.width-4,height=e.height+4))
+        self.listframe.bind("<Configure>",lambda e: self.c.configure(scrollregion=self.c.bbox("all")))
+        for _ in range(50):
+            ttk.Label(self.listframe,text="HMMMMM").grid()
+        ttk.Frame(self.listframe).grid(sticky="NEWS")
+        
+        self.listframe.bind('<Enter>', self._bound_to_mousewheel)
+        self.listframe.bind('<Leave>', self._unbound_to_mousewheel)
+
+    def _bound_to_mousewheel(self, event):
+        self.c.bind_all("<MouseWheel>", self._on_mousewheel)
+        self.c.bind_all("<Button-4>", self._on_mousewheel)
+        self.c.bind_all("<Button-5>", self._on_mousewheel)
+
+    def _unbound_to_mousewheel(self, event):
+        self.c.unbind_all("<MouseWheel>")
+        self.c.unbind_all("<Button-4>")
+        self.c.unbind_all("<Button-5>")
+
+    def _on_mousewheel(self, event):
+        if event.delta%120==0:
+            delta=-1*(event.delta/120)
+        if event.num==4:
+            delta=-1
+        elif event.num==5:
+            delta=1
+        self.c.yview_scroll(int(delta), "units")
+
 class ErrLabel(ttk.Label):
-    def showerror(self,text:str):
+    def __init__(self, master= None, *, anchor = None, background = None, border = None, borderwidth = None, class_ = None, compound = None, cursor = None, font = None, foreground = None, image = None, justify = None, name = None, padding = None, relief = None, state = None, style = "Error.TLabel", takefocus = None, text = None, textvariable = None, underline = None, width = None, wraplength = None) -> None:
+        super().__init__(master, anchor=anchor, background=background, border=border, borderwidth=borderwidth, class_=class_, compound=compound, cursor=cursor, font=font, foreground=foreground, image=image, justify=justify, name=name, padding=padding, relief=relief, state=state, style=style, takefocus=takefocus, text=text, textvariable=textvariable, underline=underline, width=width, wraplength=wraplength)
+    def showerror(self,text:str="",linelim=25):
         if text==None or text=="":
             self.config(text="")
             return
-        linelim=25
         newtext=[]
         line=""
         for word in text.split(" "):
@@ -44,7 +84,7 @@ class PasswordEntry(ttk.Frame):
         self.show=tk.IntVar()
         f=ttk.Frame(self)
         f.grid(row=0,column=0)
-        self.errlabel=ErrLabel(self,font=("Helvetica",10),foreground="red")
+        self.errlabel=ErrLabel(self,font=("Helvetica",10))
         self.errlabel.grid(row=1,column=0)
         self.entry=ValidateEntry(f,width=width,show="*",errcommand=self.validatePassword,errlabel=self.errlabel)
         self.entry.grid(column=0,row=0)
@@ -72,7 +112,7 @@ class SecondaryPass(PasswordEntry):
     def __init__(self, master=None, width=None) -> None:
         self.entry2=None
         super().__init__(master, width)
-        self.errlabel2=ErrLabel(self,font=("Helvetica",10),foreground="red")
+        self.errlabel2=ErrLabel(self,font=("Helvetica",10))
         self.errlabel2.grid(row=3,column=0)
         self.entry2=ValidateEntry(self,width=width,show="*",errcommand=self.validate2ndPass,errlabel=self.errlabel2)
         self.entry2.grid(row=2,column=0)
@@ -151,8 +191,5 @@ class chatWidget(ttk.Frame):
 
 if __name__=="__main__":
     root=tk.Tk()
-    chatWidget(root).pack(fill="both",expand=True)
-    root.mainloop()
-    root=tk.Tk()
-    PasswordEntry(root,10,text="AAAAAAA").pack()
+    ListBox(root).pack(expand=True,fill="both")
     root.mainloop()

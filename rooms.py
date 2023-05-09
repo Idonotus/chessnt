@@ -88,27 +88,23 @@ class RoomServer:
         else:
             raise FileExistsError
 
-    def join(self,userobj,roomId:str):
+    def joinRoom(self,userobj,roomId:str,password=None):
         if userobj.name not in self.userindex:
             self.userindex[userobj.name]=[]
-        self.userindex[userobj.name].append(roomId)
-        self.roomindex[roomId].join(userobj)
+        if roomId not in self.roomindex:
+            raise FileNotFoundError
+        room=self.roomindex[roomId]
+        if room.AuthJoin(password):
+            self.userindex[userobj.name]=roomId
+            self.roomindex[roomId].join(userobj)
+        else:
+            raise EnvironmentError
 
-    def leave(self,userobj,roomId):
+    def leaveRoom(self,userobj,roomId):
         if userobj.name not in self.userindex:
             return
-        userrooms:list=self.userindex[userobj.name]
-        if roomId in userrooms:
-            userrooms.remove(roomId)
+        self.userindex[userobj.name]=""
         self.roomindex[roomId].leave(userobj)
-
-    def leaveall(self,userobj):
-        if userobj.name not in self.userindex:
-            return
-        userrooms:list=self.userindex[userobj.name]
-        for roomId in userrooms:
-            self.roomindex[roomId].leave(userobj)
-        self.userindex.pop(userobj.name)
     
     def broacast(self,roomId,com,user=None):
         if not (isinstance(user,(str)) or not user):
@@ -124,4 +120,31 @@ class RoomServer:
         if roomId not in self.roomindex:
             return
         self.roomindex[roomId].send(com,user.name)
-    
+
+    def room_usercommands(self,user,com):
+        #createroom
+        #joinroom
+        #getrooms
+        match com["com"]:
+            case "createroom":
+                roomname=com["roomname"]
+                roompass=com["roompass"]
+                try:
+                    self.createRoom(Room,roomname,password=roompass)
+                    user.send({"com":"joinedroom","mod":"Prromsel","type":"Simple"})
+                except FileExistsError:
+                    user.clientError("RoomExists","Proomsel")
+            case "joinroom":
+                roomname=com["roomname"]
+                roompass=com["roompass"]
+                try:
+                    self.joinRoom(user,roomname,roompass)
+                except EnvironmentError or FileNotFoundError:
+                    user.clientError("AuthDeny","Proomsel")
+            case "getrooms":
+                visiblerooms=[
+                {"name":room.name,"password":bool(room.password)}
+                for room in self.roomindex.values() if room.AuthSee
+                ]
+                com={"com":"refreshrooms","roomarray":visiblerooms,"mod":"Proomsel"}
+                user.send(com)

@@ -102,16 +102,15 @@ class Logic:
         return diff
 
     def canmove(self,pos1,pos2,team=None):
+        if not self.validatemove(pos2.x,pos2.y):
+            return False
         if team is not None and team not in self.teamturn:
                 return False
-        print("a")
         movepiece=self.getpiece(pos=pos1)
         if not movepiece:
             return False
-        print("b")
         if movepiece.team!=team:
             return False
-        print("c")
         return movepiece.canmove(pos2)
 
     def movepiece(self,pos1,pos2):

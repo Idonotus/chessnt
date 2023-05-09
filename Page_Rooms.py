@@ -19,22 +19,20 @@ class GetPassPopUp(tk.Toplevel):
         super().__init__(master)
         self.roomname=roomname
         self.awaiting=False
-        ttk.Label(self,text="Password required").grid(row=0,column=0)
-        self.password=LenPassEntry(self,1,100)
+        r=ttk.Frame(self)
+        r.pack(expand=True,fill="both")
+        ttk.Label(r,text="Password required").grid(row=0,column=0)
+        self.password=LenPassEntry(r,1,100)
         self.password.grid(row=1,column=0)
         self.grid_columnconfigure(0,weight=1)
-        self.b=ttk.Button(self,text="Confirm",command=self.collectEntries)
+        self.b=ttk.Button(r,text="Confirm",command=self.collectEntries)
         self.b.grid(row=2)
 
     def collectEntries(self):
         if self.password.isvalid():
             password=self.password.get()
             self.master.reqjoinroom(self.roomname,password)
-            self.querymode()
-
-    def querymode(self):
-        self.b["state"]=tk.DISABLED
-        self.awaiting=True
+            self.destroy
 
 class DJPopUp(tk.Toplevel):
     def __init__(self,master):
@@ -56,12 +54,7 @@ class DJPopUp(tk.Toplevel):
             roomname=self.name.get()
             roompass=self.password.get()
             self.master.reqjoinroom(roomname,roompass)
-            self.querymode()
-    
-    def querymode(self):
-        self.b["state"]=tk.DISABLED
-        self.awaiting=True
-
+            self.destroy()
 class CreationPopUp(tk.Toplevel):
     def __init__(self, master) -> None:
         self.master=master
@@ -90,11 +83,7 @@ class CreationPopUp(tk.Toplevel):
             roomname=self.name.get()
             roompass=self.password.get()
             self.master.reqcreateroom(roomname,roompass,priv)
-            self.querymode()
-    
-    def querymode(self):
-        self.b["state"]=tk.DISABLED
-        self.awaiting=True
+            self.destroy()
 
 
 class RoomPage(ttk.Frame):
@@ -119,21 +108,19 @@ class RoomPage(ttk.Frame):
         self.grid_columnconfigure(0,weight=1)
         self.grid_rowconfigure(0,weight=1)
         self.roomlist=tk.Listbox(roomselcon,selectmode=tk.SINGLE)
-        self.roomlist.grid(row=0,column=0,columnspan=4,sticky="NEWS")
+        self.roomlist.grid(row=0,column=0,columnspan=3,sticky="NEWS")
         self.rooms={}
         roomselcon.grid_columnconfigure(0,weight=1)
         roomselcon.grid_columnconfigure(1,weight=1)
         roomselcon.grid_columnconfigure(2,weight=1)
-        roomselcon.grid_columnconfigure(3,weight=1)
         roomselcon.grid_rowconfigure(0,weight=1)
-        ttk.Button(roomselcon,text="Refresh",command=self.refresh).grid(padx=2,row=1,column=3,sticky="WE")
+        ttk.Button(roomselcon,text="Refresh",command=self.refresh).grid(padx=2,row=1,column=2,sticky="WE")
         ttk.Button(roomselcon,text="Join room",command=self.joinselected).grid(padx=2,row=1,column=0,sticky="WE")
         ttk.Button(roomselcon,command=lambda:self.popup(DJPopUp),text="Join directly").grid(row=1,column=1,sticky="WE",padx=2)
-        ttk.Button(roomselcon,command=lambda:self.popup(CreationPopUp),text="Create room").grid(pady=10,padx=2,row=1,column=2,sticky="WE")
 
     def refresh(self):
         com={
-            "com":"getRooms",
+            "com":"getrooms",
             "mod":"rooms"
         }
         if self.s:
@@ -197,6 +184,10 @@ class RoomPage(ttk.Frame):
     
     def removeRoom(self,index=tk.END):
         self.roomlist.delete(index)
+    
+    def handleCommand(self,com):
+        if com["com"]=="joinedroom":
+            self.main.page("Pchessroom")
             
 
 def roomcredcheck(roomname,roompass="",private=False):

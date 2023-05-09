@@ -14,7 +14,7 @@ class UserAuth:
         self.main=main
     def handleCommand(self,com):
         if com["com"]=="Login":
-            self.main.page("main")
+            self.main.page("Proomsel")
 
 class LoginPage(ttk.Frame):
     name="Plogin"

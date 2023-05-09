@@ -2,15 +2,17 @@ from ..vectormath import *
 from . import PieceSprites
 import warnings
 import tkinter as tk
-import timeit
 class Gui(tk.Canvas):
     """Handles chess GUI/user interaction"""
-    def __init__(self, master, width=8,height=8,tile=50) -> None:
+    def __init__(self, master, width=8,height=8,tile=50,signal=None) -> None:
         self.WIDTH=width
         self.HEIGHT=height
         self.TILESIZE=tile
-        self.colour=("#FFFFFF","#000000")
-        self.movehighlights=("#E384FF","#FFA3FD")
+        self.signal=signal
+        self.highlights={"move":("#FFA3FD","#E384FF"),
+                        "default":("#fcf803","#fcb603"),
+                        "danger":("#E76161","#B04759"),
+                        "normal":("#FFFFFF","#000000"),}
         super().__init__(master,height=(height)*tile,width=(width)*tile)
         self.bind("<Button-1>",self.drag_start)
         self.bind("<B1-Motion>",self.drag_motion)
@@ -19,10 +21,9 @@ class Gui(tk.Canvas):
         self.teamcolours=("#FF0000","#0000FF")
         self.tiles=[]
         self.game=None
-        self.logic=None
         self.ROTATION=0
         self.draggable=None 
-        self.movehighlight=[]
+        
         self.PIECES = PieceSprites.getallpieces()
         for x in range(width):
             self.data.append([])
@@ -31,17 +32,18 @@ class Gui(tk.Canvas):
         for x in range(0,self.WIDTH):
             self.tiles.append([])
             for y in range(0,self.HEIGHT):
-                px,py=self.localrotate(self.ROTATION,x,
-                                                 y)
+                px,py=self.localrotate(self.ROTATION,x,y)
                 scaledx=px*self.TILESIZE
                 scaledy=py*self.TILESIZE
-                colour=self.colour[(x+y)%len(self.colour)]
+                colour=self.highlights["normal"][(x**2+y)%len(self.highlights["normal"])]
 
 
                 rect=self.create_rectangle(scaledx,scaledy,scaledx+tile,scaledy+tile,fill=colour,outline="")
                 self.tag_lower(rect)
                 self.tiles[x].append(rect)
-        
+    def addscheme(self,name,colors:tuple):
+        self.highlights[name]=colors
+
     def addpiece(self,name,x,y,team):
         if name not in self.PIECES:
             warnings.warn(f"Sprite not found for piece \"{name}\". Using dummy instead")
@@ -72,34 +74,38 @@ class Gui(tk.Canvas):
         v=v.rot90(rotation)
         x=int(v.x)
         y=int(v.y)
-
-
         if x<=0 and key.x<0:
             x=((self.WIDTH-1))+x
         if y<=0 and key.y<0:
             y=((self.HEIGHT-1))+y
         return x,y
-    def removehighlight(self,highlight,tiles=[]):
-        if not tiles:
-            for pos in highlight:
-                fill=self.colour[int(pos.x+pos.y)%len(self.colour)]
-                self.itemconfigure(self.tiles[int(pos.x)][int(pos.y)],fill=fill)
 
-    def highlighttiles(self,highlight:list,tiles):
+
+
+    def removehighlight(self,highlight=None,tiles=[]):
+        atiles=[]+tiles
+        if highlight in self.highlights:
+            atiles+=[vector(self.coords(obj)[0],self.coords(obj)[1])/self.TILESIZE for obj in self.find_withtag(highlight)]
+        self.highlighttiles(atiles,highlight="normal")
+
+    def highlighttiles(self,tiles,*,color:list=[],highlight=""):
+        if highlight not in self.highlights:
+            if color is None or color == []:
+                color=self.highlights["default"]
+        else:
+            color=self.highlights[highlight]
         for pos in tiles:
             if isinstance(pos,vector):
-                fill=self.movehighlights[int(pos.x+pos.y)%len(self.movehighlights)]
-                self.itemconfigure(self.tiles[int(pos.x)][int(pos.y)],fill=fill)
-            highlight.append(pos)
+                fill=color[int(pos.x+pos.y)%len(color)]
+                self.itemconfigure(self.tiles[int(pos.x)][int(pos.y)],fill=fill,tags=(highlight,))
     
     def applychanges(self,changes):
-        a=timeit.timeit()
         for item in changes:
             if item[1]:
                 self.settile(item[0][0],item[0][1],item[1].sname,item[1].team)
             else:
                 self.settile(item[0][0],item[0][1],None)
-        print(a)
+
     def end(self,team):
         p=tk.Toplevel()
         tk.Label(p,text=f"Team {team+1} lost").pack()
@@ -134,10 +140,10 @@ class Gui(tk.Canvas):
         x,y=self.localrotate(self.ROTATION,x,y,True)
         self.draggable.returnpiece()
         self.draggable=None         
-        self.removehighlight(self.movehighlight)
+        self.removehighlight(highlight="move")
         pos2=vector(x,y)
-        if self.logic and self.game:
-            self.game.makemove(widget.position,pos2)
+        if self.signal:
+            self.signal("drop_piece",widget.position,pos2)
         
     def drag_start(self,event):
         tilex=event.x//self.TILESIZE
@@ -147,10 +153,10 @@ class Gui(tk.Canvas):
             if not self.data[tilex][tiley]:
                 return
             self.draggable=self.data[tilex][tiley]
-            if self.logic:
-                p=self.logic.getpiece(x=tilex,y=tiley)
-                self.highlighttiles(self.movehighlight,p.availmoves+p.availtakes)
+            
             self.tag_raise(self.draggable.image)
+            if self.signal:
+                self.signal("pickup_piece",tilex,tiley)
 
     def drag_motion(self,event):
         if not self.draggable:

@@ -4,6 +4,9 @@ import json
 import sqlite3
 import errno
 import logging
+import rooms
+import os
+logging.basicConfig(format="[%(levelname)s] %(message)s",level=logging.DEBUG)
 database=sqlite3.connect("server.db",check_same_thread=False)
 database.execute("CREATE TABLE IF NOT EXISTS users (name TEXT UNIQUE, auth INT, pass TEXT, originaddress TEXT)")
 database.execute("CREATE TABLE IF NOT EXISTS addresses (addr TEXT UNIQUE, Userslotsleft INT)")
@@ -20,34 +23,41 @@ dataaccess=threading.Lock()
 #
 #
 #
-class Server(socket.socket):
-    def __init__(self, handler, family: socket.AddressFamily  = socket.AF_INET, type: socket.SocketKind = socket.SOCK_STREAM) -> None:
-        super().__init__(family, type)
-        self.HOST=socket.gethostbyname(socket.gethostname())
-        self.bind((self.HOST,40001))
-        self.PORT=self.getsockname()[1]
-        print("Listening on ", self.getsockname())
-        self.acceptingCon=True
-        self.handler=handler
+class ExeQueuetioner:
+    def __init__(self) -> None:
         self.exequeue=[]
-        threading.Thread(target=self.executioner,daemon=True).start()
-        self.listen()
-        self.acceptCon()
-
-    def executioner(self):
+    def start(self):
         while True:
             if not len(self.exequeue)>0:
                 continue
             com=self.exequeue[0]
             try:
                 com["com"](*com["args"],**com["kwargs"])
-            except Exception as e:
+            except Exception:
                 logging.exception()
             finally:
                 self.exequeue.pop(0)
 
     def addqueue(self,command,*args,**kwargs):
         self.exequeue.append({"com":command,"args":args,"kwargs":kwargs})
+    
+    def fetchlast(self):
+        return self.exequeue[0]
+class Server(socket.socket, rooms.RoomServer):
+    def __init__(self, handler, family: socket.AddressFamily  = socket.AF_INET, type: socket.SocketKind = socket.SOCK_STREAM) -> None:
+        super().__init__(family, type)
+        self.HOST=os.uname()[1]
+        self.bind((self.HOST,4000))
+        self.PORT=self.getsockname()[1]
+        print("Listening on ", self.getsockname())
+        self.acceptingCon=True
+        self.handler=handler
+        self.roomindex={}
+        self.userindex={}
+        self.exe=ExeQueuetioner()
+        threading.Thread(target=self.exe.start,daemon=True).start()
+        self.listen()
+        self.acceptCon()
 
     def acceptCon(self):
         while self.acceptingCon:
@@ -65,7 +75,7 @@ class Server(socket.socket):
         c=connection
         response=self.validatecredentials(com)
         if not response[0]:
-            self.clientError(c,"l-"+response[1],"Plogin")
+            user.clientError(c,"l-"+response[1],"Plogin")
         dataaccess.acquire()
         response=database.execute("SELECT * FROM users WHERE name=? AND pass=?",(com["name"],com["pass"]))
         dataaccess.release()
@@ -87,15 +97,15 @@ class Server(socket.socket):
             r=database.execute("SELECT Userslotsleft FROM addresses WHERE addr=?",(addr,))
             database.rollback()
         if 0<r.fetchone()[0]:
-            self.clientError(c,"s-CreationUnavailable","Plogin")
+            user.clientError(c,"s-CreationUnavailable","Plogin")
             return
         response=self.validatecredentials(com)
         if not response[0]:
-            self.clientError(c,"s-"+response[1],"Plogin")
+            user.clientError(c,"s-"+response[1],"Plogin")
             return
         response=self.createUser(1,com["name"],com["pass"],addr)
         if not response:
-            self.clientError(c,"s-UserCreationError","Plogin")
+            user.clientError(c,"s-UserCreationError","Plogin")
             return
         with dataaccess:
             database.execute("UPDATE addresses SET Userslotsleft=0 where addr=?",(addr,))
@@ -129,16 +139,7 @@ class Server(socket.socket):
         dataaccess.release()
         return success
         
-    def clientError(self,c,errortype,mod=None,**kwargs):
-        if mod==None:
-            mod="main"
-        data={"com":"raiseError",
-                "mod":mod,
-                "type":errortype}
-        data.update(kwargs)
-        data=json.dumps(data)+"\0"
-        c.sendall(data.encode())
-
+    
     def leaveClient(self,user):
         pass
 
@@ -174,22 +175,41 @@ class UserHandler:
                 self.redirectCommand(com)
             data=coms[-1:][0]
     
+    def send(self,data:str|dict):
+        if isinstance(data,dict):
+            data=json.dumps(data)
+        data+="\0"
+        self.c.sendall(data.encode())
+    
     def redirectCommand(self,com):
         c=self.c
         s=self.server
+        q=self.server.exe
         if not self.user and com["mod"]!="userauth":
-            s.clientError(c,"NotAuth",reason="NoLogin")
+            self.clientError(c,"NotAuth",reason="NoLogin")
 
         if com["mod"]=="userauth":
             if com["com"] in ["createUser","loginUser"]:
                 if self.user:
-                    s.clientError(c,"NotAuth",reason="LoggedIn")
+                    self.clientError(c,"NotAuth",reason="LoggedIn")
                 if com["com"]=="createUser":
-                    s.addqueue(s.userSignUp,c,self,com)
+                    q.addqueue(s.userSignUp,c,self,com)
                 if com["com"]=="loginUser":
-                    s.addqueue(s.login,c,self,com)
-            #else:
-                #
-                
+                    q.addqueue(s.login,c,self,com)
+        if com["mod"]=="rooms":
+            q.addqueue(s.room_usercommands,self,com)
+    
+    def clientError(self,errortype,mod=None, queue=False,**kwargs):
+        if mod==None:
+            mod="main"
+        data={"com":"raiseError",
+                "mod":mod,
+                "type":errortype}
+        data.update(kwargs)
+        if queue:
+            data["cause"]=self.q.fetchlast
+        data=json.dumps(data)+"\0"
+        self.c.sendall(data.encode())
+
 if __name__=="__main__":
     s=Server(UserHandler)

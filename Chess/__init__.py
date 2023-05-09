@@ -17,11 +17,9 @@ class Game:
     def __init__(self,master=None,height=8,width=8,tile=50) -> None:
         if not master:
             master=tk.Tk()
-        self.gui=gui.Gui(master,width,height,tile)
+        self.gui=gui.Gui(master,width,height,tile,signal=self.signal)
         self.gui.pack()
         self.logic=logic.Logic(width,height,2,self)
-        self.gui.logic=self.logic
-        self.gui.game=self
         self.conductor=conductor.Conductor([0,1])
         self.conductor.logic=self.logic
         self.end=False
@@ -47,6 +45,17 @@ class Game:
     def teamlose(self,team):
         self.gui.end(team)
         self.conductor.end()
+    def highlightmoves(self,x,y):
+        p=self.logic.getpiece(x=x,y=y)
+        if not p:
+            return
+        self.gui.highlighttiles(p.availmoves+p.availtakes,highlight="move")
+
+    def signal(self,sig,*args,**kwargs):
+        if sig=="drop_piece":
+            self.makemove(*args)
+        if sig=="pickup_piece":
+            self.highlightmoves(*args)
 def makeclassic():
     makeboard(classic)
 
