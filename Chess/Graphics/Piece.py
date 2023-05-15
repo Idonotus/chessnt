@@ -1,11 +1,19 @@
 from ..vectormath import *
+import random
+def randcolor():
+    return f"#{random.randint(0,255):02x}{random.randint(0,255):02x}{random.randint(0,255):02x}"
 class Piece():
     def __init__(self,gui,size,points,x=0,y=0,team=0):
         self.gui=gui
         self.position=vector(x,y)
         self.TILESIZE=size
         self.team=team
-        self.image=gui.create_polygon(*points,fill=gui.teamcolours[team])
+        if team < len(gui.teamcolors):
+            color=gui.teamcolors[team]
+        else:
+            color=randcolor()
+            gui.teamcolors.append(color)
+        self.image=gui.create_polygon(*points,fill=color)
         self.returnpiece()
 
     def specialmoves(self,action,x,y):

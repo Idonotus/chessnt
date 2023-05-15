@@ -47,12 +47,14 @@ class Room:
 class chessRoom(Room):
     def __init__(self, name: str, *, private: bool = False, password: str = None) -> None:
         super().__init__(name, private, password)
+        self.userteams={}
         self.logic=None
+        self.running=False
 
     def startGame(self,data):
         sizedata=data["size"]
         teamcount=data["teams"]
-        self.logic=Chess.Logic.GameLogic.Logic(sizedata[0],sizedata[1],teamcount)
+        self.logic=Chess.logic.Logic(sizedata[0],sizedata[1],teamcount)
         for y,row in enumerate(data["board"].split("|nr|")):
             x=0
             for tile in row.split(","):
@@ -68,13 +70,44 @@ class chessRoom(Room):
                         continue
                     self.logic.addpiece(Chess.pieces[p[0]],x,y,int(p[1]))
                     x+=1
-        self.turnorder=Chess.conductor.genturn(data["turnorder"])
+        self.turnorder=Chess.turngen(data["turnorder"])
         self.turn=next(self.turnorder)
+        self.logic.teamturn=self.turn
+        self.running=True
     
-    def make_move(self,team):
+    def authmove(self, userobj, pos):
+        p=self.logic.getpiece(pos=pos)
+        if userobj.name not in self.userteams:
+            return False
+        if p.team not in self.userteams[userobj.name]:
+            return False
+        return True
 
+
+    def make_move(self,userobj,pos1,pos2):
+        if not self.running:
+            return
+        if not self.logic.ispiece(pos=pos1):
+            return
+        if not self.authmove(userobj,pos1):
+            return
+        if not self.logic.canmove(pos1,pos2):
+            return
+        r=self.logic.movepiece(pos1,pos2)
+        if r is None:
+            return
+        self.gui.applychanges(r)
+        self.endturn()
+
+    def endturn(self):
         self.turn=next(self.turnorder)
+        self.logic.teamturn=self.turn
 
+    def handlecommand(self,):
+        if self.running:
+            pass
+        else:
+            pass
 class RoomServer:
     def __init__(self) -> None:
         self.roomindex={}

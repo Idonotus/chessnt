@@ -3,6 +3,7 @@ import logging
 from typing import Self
 class Piece:
     def __init__(self,logic,x=0,y=0,team=0):
+        self.inactive=False
         self.logic=logic
         self.position=vector(x,y)
         self.availmoves=[]
