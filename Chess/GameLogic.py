@@ -1,4 +1,5 @@
 from .Logic import PieceLogic
+from .Logic.Piece import Piece
 import logging
 import random
 class Team:
@@ -6,7 +7,7 @@ class Team:
     def __init__(self) -> None:
         self.kings=[]
         self.checked=False
-        
+
 class Logic:
     """Handles chess logic. Essential for chess to actually work"""
     def __init__(self,width,height,numteams,game) -> None:
@@ -147,6 +148,15 @@ class Logic:
         
     def ispiece(self,*, pos=None, x=None, y=None):
         return bool(self.getpiece(pos=pos,x=x,y=y))
+
+    def convertgui(self,var):
+        if isinstance(var,Piece):
+            return var.GuiExport()
+        if isinstance(var,list):
+            temp=[]
+            for item in var:
+                temp.append(self.convertgui(item))
+            return temp
 
     def getpiece(self,*, pos=None, x=None, y=None):
         if pos:
