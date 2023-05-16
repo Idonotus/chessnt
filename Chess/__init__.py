@@ -89,7 +89,7 @@ class Game:
         self.logic.addpiece(x=x,y=y,name=name,team=team,**kwargs)
         self.gui.addpiece(x=x,y=y,name=name,team=team)
     def makemove(self,pos1,pos2):
-        if self.logic.canmove(pos1,pos2):
+        if not self.logic.canmove(pos1,pos2):
             return
         r=self.logic.movepiece(pos1,pos2)
         if r is None:

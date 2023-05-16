@@ -1,5 +1,6 @@
 from .Logic import PieceLogic
 import logging
+import random
 class Team:
     """Container for team data"""
     def __init__(self) -> None:
@@ -23,13 +24,6 @@ class Logic:
                 self.data[x].append(None)
         self.PIECES=PieceLogic.getallpieces()
         self.game=game
-    
-    def logicexport(self):
-        return {
-            "teams":self.teams,
-            "board":self.data,
-            "dimensions":(self.WIDTH,self.HEIGHT)
-        }
     
     def setinactive(self,teamid):
         if teamid in self.inactiveteams:
@@ -111,11 +105,10 @@ class Logic:
             takes+=b
         actions=moves+takes
         return moves,takes,actions
-
-    def genboard():
         pass
 
     def addpiece(self,x,y,name,team,**kwargs):
+        name=random.choice(list(self.PIECES.keys()))
         name=name.lower()
         if name not in self.PIECES:
             logging.warn(f"Logic not found for piece \"{name}\". Using dummy instead")
