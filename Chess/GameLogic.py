@@ -23,14 +23,7 @@ class Logic:
                 self.data[x].append(None)
         self.PIECES=PieceLogic.getallpieces()
         self.game=game
-    
-    def logicexport(self):
-        return {
-            "teams":self.teams,
-            "board":self.data,
-            "dimensions":(self.WIDTH,self.HEIGHT)
-        }
-    
+
     def setinactive(self,teamid):
         if teamid in self.inactiveteams:
             return

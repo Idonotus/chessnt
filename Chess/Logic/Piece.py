@@ -2,6 +2,7 @@ from ..vectormath import *
 import logging
 from typing import Self
 class Piece:
+    name="piece"
     def __init__(self,logic,x=0,y=0,team=0):
         self.inactive=False
         self.logic=logic
@@ -9,7 +10,10 @@ class Piece:
         self.availmoves=[]
         self.availtakes=[]
         self.team=team
-        
+    
+    def GuiExport(self):
+        return {"name":name,"pos":pos,"team":team}
+
     def move(self,move,data):
         if move==self.position:
             a= "return"
