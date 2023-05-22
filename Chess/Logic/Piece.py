@@ -12,26 +12,15 @@ class Piece:
         self.team=team
     
     def GuiExport(self):
-        return {"name":name,"pos":pos,"team":team}
+        return {"name":self.name,"pos":self.position,"team":self.team}
 
     def move(self,move,data):
-        if move==self.position:
-            a= "return"
-        elif move in self.availtakes:
-            a= "take"
-        elif move in self.availmoves:
-            a= "move"
-        else:
-            a= "return"
-            return a
-        x=self.position.x
-        y=self.position.y
-        x=int(x)
-        y=int(y)
+        if move not in self.availmoves and move not in self.availtakes:
+            return
+        x, y=self.position.intcoords()
         data[x][y]=None
         data[int(move.x)][int(move.y)]=self
         self.position=move
-        return a
 
     def canmove(self,move):
         return move in self.availmoves or move in self.availtakes

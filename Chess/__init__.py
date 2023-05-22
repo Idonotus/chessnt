@@ -91,9 +91,13 @@ class Game:
     def makemove(self,pos1,pos2):
         if not self.logic.canmove(pos1,pos2):
             return
-        r=self.logic.movepiece(pos1,pos2)
+        r=self.logic.reqmovepiece(pos1,pos2)
         if r is None:
             return
+        for diff in r:
+            if diff[1] is None:
+                continue
+            diff[1]=diff[1].GuiExport()
         self.gui.applychanges(r)
         self.endturn()
     def endturn(self):

@@ -121,7 +121,7 @@ class Logic:
         self.data[x][y]=self.PIECES[name](logic=self,x=x,y=y,team=team,**kwargs)
 
     def getdifferences(self,base:list,changed:list):
-        diff=[((x,y),changed[x][y]) for x in range(len(changed)) for y in range(len(changed[x])) if changed[x][y]!=base[x][y]]
+        diff=[[(x,y),changed[x][y]] for x in range(len(changed)) for y in range(len(changed[x])) if changed[x][y]!=base[x][y]]
         return diff
 
     def canmove(self,pos1,pos2,team=None):
@@ -136,7 +136,7 @@ class Logic:
             return False
         return movepiece.canmove(pos2)
 
-    def movepiece(self,pos1,pos2):
+    def reqmovepiece(self,pos1,pos2):
         p=self.getpiece(pos=pos1)
         if not p:
             return
@@ -145,18 +145,9 @@ class Logic:
         if a=="return":
             return
         return self.getdifferences(c,self.data)
-        
+
     def ispiece(self,*, pos=None, x=None, y=None):
         return bool(self.getpiece(pos=pos,x=x,y=y))
-
-    def convertgui(self,var):
-        if isinstance(var,Piece):
-            return var.GuiExport()
-        if isinstance(var,list):
-            temp=[]
-            for item in var:
-                temp.append(self.convertgui(item))
-            return temp
 
     def getpiece(self,*, pos=None, x=None, y=None):
         if pos:

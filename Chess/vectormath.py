@@ -70,6 +70,9 @@ class vector:
             y=temp
             full.append(vector(x,y))
         return full
+    
+    def intcoords(self):
+        return int(self.x), int(self.y)
 class shape:
     def __init__(self,position:vector,*args:vector) -> None:
         self.pos=position

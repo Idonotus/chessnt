@@ -2,7 +2,7 @@ from ..vectormath import *
 import random
 def randcolor():
     return f"#{random.randint(0,255):02x}{random.randint(0,255):02x}{random.randint(0,255):02x}"
-class Piece():
+class Piece:
     def __init__(self,gui,size,points,x=0,y=0,team=0):
         self.gui=gui
         self.position=vector(x,y)
@@ -15,24 +15,6 @@ class Piece():
             gui.teamcolors.append(color)
         self.image=gui.create_polygon(*points,fill=color)
         self.returnpiece()
-
-    def specialmoves(self,action,x,y):
-        pass
-
-    def move(self,actions,move):
-        x=int(move.x)
-        y=int(move.y)
-        if isinstance(actions,str):
-            actions=[actions]
-        for action in actions:
-            if action =="return":
-                self.returnpiece()
-            elif action=="take":
-                self.takepiece(x,y)
-            elif action=="move":
-                self.movepiece(x,y)
-            else:
-                self.specialmoves(action,x,y)
 
     def delete(self):
         self.gui.delete(self.image)
@@ -52,3 +34,11 @@ class Piece():
         self.gui.data[x][y]=self
         self.position=vector(x,y)
         self.gui.data[int(pos.x)][int(pos.y)]=None
+
+class SpritePiece(Piece):
+    def __init__(self, gui, size, sprite, x=0, y=0, team=0):
+        points=sprite["points"].copy()
+        self.offset=(vector(sprite["offset"][0],sprite["offset"][1])*size).intcoords()
+        for i,item in enumerate(points):
+            points[i]=(vector(item[0],item[1])*size+size*vector(x,y)).intcoords()
+        super().__init__(gui, size, points, x, y, team)

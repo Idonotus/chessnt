@@ -1,13 +1,19 @@
 from .vectormath import *
-from .Graphics import PieceSprites
-import warnings
+from .Graphics.Piece import SpritePiece
+import logging
 import tkinter as tk
+import json
+import os
+
+
 class Gui(tk.Canvas):
     """Handles chess GUI/user interaction"""
     def __init__(self, master, width=8,height=8,tile=50,signal=None) -> None:
         self.WIDTH=width
         self.HEIGHT=height
         self.TILESIZE=tile
+        with open(os.path.join(os.path.dirname(__file__),"sprites.json")) as f:
+            self.SPRITES=json.load(f)
         self.signal=signal
         self.highlights={"move":("#FFA3FD","#E384FF"),
                         "default":("#fcf803","#fcb603"),
@@ -22,9 +28,7 @@ class Gui(tk.Canvas):
         self.tiles=[]
         self.game=None
         self.ROTATION=0
-        self.draggable=None 
-        
-        self.PIECES = PieceSprites.getallpieces()
+        self.draggable=None
         for x in range(width):
             self.data.append([])
             for _ in range(height):
@@ -41,20 +45,28 @@ class Gui(tk.Canvas):
                 rect=self.create_rectangle(scaledx,scaledy,scaledx+tile,scaledy+tile,fill=colour,outline="")
                 self.tag_lower(rect)
                 self.tiles[x].append(rect)
-    def addscheme(self,name,colors:tuple):
+    
+    def setstylesheet(self,sheet):
+        if not isinstance(sheet,dict):
+            raise TypeError
+        self.SPRITES=sheet
+        if "dummy" not in self.SPRITES:
+            self.SPRITES["dummy"]={"offset":[0,0],"points":[(0,0),(0,1),(1,1),(1,0)]}
+
+    def setscheme(self,name,colors:tuple):
+        if not isinstance(colors,(list,tuple)):
+            raise TypeError
         self.highlights[name]=colors
 
     def addpiece(self,name,x,y,team):
-        if name not in self.PIECES:
-            warnings.warn(f"Sprite not found for piece \"{name}\". Using dummy instead")
+        if name not in self.SPRITES:
+            logging.warn(f"Sprite not found for piece \"{name}\". Using dummy instead")
             name="dummy"
-        if not 0<=x<len(self.data):
-            warnings.warn("Out of bounds")
+        if not 0<=x<len(self.data) or not 0<=y<len(self.data[x]):
+            logging.warn(f"Coordinate x:{x} y:{y} of bounds")
             return
-        if not 0<=y<len(self.data[x]):
-            warnings.warn("Out of bounds")
-            return
-        self.data[x][y]=self.PIECES[name](self,self.TILESIZE,x=x,y=y,team=team)
+        p=SpritePiece(self,self.TILESIZE,x=x,y=y,team=team,sprite=self.SPRITES[name])
+        self.data[x][y]=p
     
     def settile(self,x,y,name=None,team=None):
         if self.data[x][y]:
@@ -80,8 +92,6 @@ class Gui(tk.Canvas):
             y=((self.HEIGHT-1))+y
         return x,y
 
-
-
     def removehighlight(self,highlight=None,tiles=[]):
         atiles=[]+tiles
         if highlight in self.highlights:
@@ -102,7 +112,7 @@ class Gui(tk.Canvas):
     def applychanges(self,changes):
         for item in changes:
             if item[1]:
-                self.settile(item[0][0],item[0][1],item[1].sname,item[1].team)
+                self.settile(item[0][0],item[0][1],item[1]["name"],item[1]["team"])
             else:
                 self.settile(item[0][0],item[0][1],None)
 

@@ -39,29 +39,25 @@ class Pawn(Piece):
             availtakes.append(take)
         return super().validatecheck(availmoves,availtakes,cc)
     def move(self,move,data):
-        
-        a=super().move(move,data)
-        if a=="return":
-            return a
+        super().move(move,data)
         if len(self.startmove)!=0:
             self.startmove=()
         m=move+self.moves[0]
         x=m.x
         y=m.y
         if self.logic.validatemove(x,y):
-            return a
-        a=[a,"promote"]
-        self.logic.addpiece(int(move.x),int(move.y),"queen",self.team)
-        return a
+            return
+        self.promote()
+        
+    def promote(self):
+        x, y = self.position.intcoords()
+        self.logic.addpiece(x,y,"queen",self.team)
 class CowardPawn(Pawn):
     name="pawn"
     #an inside joke that the pawn instead of promoting would just turn around
-    def move(self,move,data):
-        a=super().move(move,data)
-        if isinstance(a,list):
-            if a[-1]=="promote":
-                self.logic.addpiece(int(move.x),int(move.y),"cpawn",self.team,direction=self.direction+2)
-        return a        
+    def promote(self):
+        x, y = self.position.intcoords()
+        self.logic.addpiece(x,y,"queen",self.team,direction=self.direction+2)   
 class Rook(Piece):
     name="rook"
     def __init__(self, logic, x=0, y=0, team=0) -> None:

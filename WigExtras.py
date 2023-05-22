@@ -1,35 +1,139 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk,font
 
+class Username(ttk.Frame):
+    def __init__(self, master,text:str) -> None:
+        self.text=text
+        super().__init__(master,style="User.TFrame")
+        self.label=ttk.Label(self,text=text,style="Username.TLabel")
+        self.label.pack(fill="x",expand=True)
+        self.bind("<Configure>",lambda e: self.resizetext(e))
+    
+    def resizetext(self,e:tk.Event):
+        if not self.label.cget("font"):
+            s=font.nametofont("TkDefaultFont").actual()["size"]
+        else:
+            s=font.nametofont(self.label.cget("font")).actual()["size"]
+        textwidth=self.winfo_width()*3/2
+        possiblelen=int(textwidth//s)-1
+        if possiblelen>=len(self.text):
+            self.label.configure(text=self.text)
+            return
+        if possiblelen<=3:
+            self.label.configure(text="...")
+            return
+        possiblelen-=3
+        t=self.text[:possiblelen]+"..."
+        self.label.configure(text=t)
+
+class UserData(ttk.Frame):
+    def __init__(self,master:tk.Widget,username="Dumbrguhhdhjkass",auth=False,possibleteams=(0,1),team=1,command=None):
+        super().__init__(master=master)
+        self.grid_columnconfigure(0,weight=1)
+        self.user=Username(self,username)
+        self.user.grid(row=0,column=0,sticky="WE")
+        ttk.Label(self,text="Team").grid(row=0,column=1,padx=10,pady=6)
+        self.command=command
+        self.team=None
+        self.setPossibleTeams(possibleteams)
+        self.setAuth(auth)
+        self.team.grid(row=0,column=2)
+
+    def getUsername(self):
+        return self.user.text
+
+    def getTeam(self):
+        if isinstance(self.team,ttk.Combobox):
+            return self.team.get()
+        else:
+            return self.team.cget("text")
+    
+    def _teamchanged(self,e):
+        if self.command:
+            self.command(self.getTeam)
+    
+    def setAuth(self,auth:bool):
+        if self.team:
+            self.team.delete()
+        if auth:
+            self.team=ttk.Combobox(self,width=5,state="readonly")
+            self.team.bind("<<ComboboxSelected>>",self._teamchanged)
+            self.team["values"]=self.possibleteams
+        else:
+            self.team=ttk.Label(self,text="")
+    
+    def setPossibleTeams(self,choices):
+        self.possibleteams=list(choices).copy()
+        self.possibleteams.insert(0,"None")
+        if isinstance(self.team,ttk.Combobox):
+            self.team["values"]=choices
 class ListBox(ttk.Frame):
     def __init__(self,master,height=0,width=0):
-        super().__init__(master,height=height,width=width)
+        super().__init__(master,height=height,width=width,style="Listbox.TFrame")
         self.grid_columnconfigure(0,weight=1)
         self.grid_rowconfigure(0,weight=1)
         self.c=tk.Canvas(self,background="Red")
         self.c.grid(row=0,column=0,sticky="NEWS")
         self.scroll=ttk.Scrollbar(self,command=self.c.yview)
         self.scroll.grid(row=0,column=1,sticky="NS")
-        self.listframe=ttk.Frame(self.c)
-        self.c.create_window((0,0),window=self.listframe,anchor="nw",tags="lframe")
-        self.c.bind("<Configure>",lambda e: self.c.itemconfig("lframe",width=e.width-4,height=e.height+4))
-        self.listframe.bind("<Configure>",lambda e: self.c.configure(scrollregion=self.c.bbox("all")))
-        for _ in range(50):
-            ttk.Label(self.listframe,text="HMMMMM").grid()
-        ttk.Frame(self.listframe).grid(sticky="NEWS")
-        
-        self.listframe.bind('<Enter>', self._bound_to_mousewheel)
-        self.listframe.bind('<Leave>', self._unbound_to_mousewheel)
+        frame=ttk.Frame(self.c)
+        self.c.create_window((0,0),window=frame,anchor="nw",tags="lframe")
+        self.c.bind("<Configure>",lambda e: self.resizeconfig(e))
+        frame.bind("<Configure>",lambda e: self.c.configure(scrollregion=self.c.bbox("all")))
+        frame.grid_columnconfigure(0,weight=1)
+        self.listframe=tk.Frame(frame,bg="red")
+        self.listframe.grid_columnconfigure(0,weight=1)
+        self.listframe.grid(row=0,sticky="WE")
+        self.margin=ttk.Frame(frame)
+        self.margin.grid(row=1)
+        self.listchildren=[]
+        frame.bind('<Enter>', self._bind_to_mousewheel)
+        frame.bind('<Leave>', self._unbind_to_mousewheel)
 
-    def _bound_to_mousewheel(self, event):
+    def _bind_to_mousewheel(self, event):
         self.c.bind_all("<MouseWheel>", self._on_mousewheel)
         self.c.bind_all("<Button-4>", self._on_mousewheel)
         self.c.bind_all("<Button-5>", self._on_mousewheel)
 
-    def _unbound_to_mousewheel(self, event):
+    def _unbind_to_mousewheel(self, event):
         self.c.unbind_all("<MouseWheel>")
         self.c.unbind_all("<Button-4>")
         self.c.unbind_all("<Button-5>")
+    
+    def resizeconfig(self,e=None):
+        height=1
+        if self.listframe.winfo_height()<self.c.winfo_height():
+            height=self.c.winfo_height()-self.listframe.winfo_height()
+        self.margin.config(height=height)
+        self.c.itemconfig("lframe",width=self.c.winfo_width()-4)
+
+    def insert(self,item:ttk.Frame,index=tk.END):
+        if index==tk.END:
+            index=len(self.listchildren)
+        elif index>len(self.listchildren):
+            index=len(self.listchildren)
+        for i in range(len(self.listchildren)-1,index-1,-1):
+            o:ttk.Frame=self.listchildren[i]
+            o.grid_forget()
+            o.grid(row=i+1,sticky="WE")
+        item.grid(row=index,sticky="WE")
+        self.listchildren.insert(index,item)
+        self.resizeconfig()
+    
+    def remove(self,index=tk.END):
+        if index==tk.END:
+            index=len(self.listchildren)-1
+        elif index>=len(self.listchildren):
+            index=len(self.listchildren)-1
+        self.listchildren.pop(index).destroy()
+        for i in range(len(self.listchildren)-1,index-1,-1):
+            o:ttk.Frame=self.listchildren[i]
+            o.grid_forget()
+            o.grid(row=i,sticky="WE")
+        self.resizeconfig()
+            
+    def getmaster(self):
+        return self.listframe
 
     def _on_mousewheel(self, event):
         if event.delta%120==0:
@@ -39,6 +143,28 @@ class ListBox(ttk.Frame):
         elif event.num==5:
             delta=1
         self.c.yview_scroll(int(delta), "units")
+
+class UserList(ListBox):
+    def __init__(self, master, height=0, width=0):
+        super().__init__(master, height, width)
+        
+
+
+    def insert(self, item: UserData, index=tk.END):
+        if not isinstance(item,UserData):
+            raise TypeError
+        return super().insert(item, index)
+
+    def findObj(self,name:str):
+        for item in self.listchildren:
+            if item.getUsername()==name:
+                return item
+    
+    def setAuth(self,name:str,auth:bool):
+        self.findObj(name).setAuth(auth)
+    
+    def removeName(self, name:str):
+        return super().remove(self.listchildren.index(self.findObj(name)))
 
 class ErrLabel(ttk.Label):
     def __init__(self, master= None, *, anchor = None, background = None, border = None, borderwidth = None, class_ = None, compound = None, cursor = None, font = None, foreground = None, image = None, justify = None, name = None, padding = None, relief = None, state = None, style = "Error.TLabel", takefocus = None, text = None, textvariable = None, underline = None, width = None, wraplength = None) -> None:
@@ -88,7 +214,6 @@ class PasswordEntry(ttk.Frame):
         self.errlabel.grid(row=1,column=0)
         self.entry=ValidateEntry(f,width=width,show="*",errcommand=self.validatePassword,errlabel=self.errlabel)
         self.entry.grid(column=0,row=0)
-
         ttk.Checkbutton(f,variable=self.show,command=self.toggleView).grid(column=1,row=0)
 
     def validatePassword(self,password):
@@ -191,5 +316,6 @@ class chatWidget(ttk.Frame):
 
 if __name__=="__main__":
     root=tk.Tk()
-    ListBox(root).pack(expand=True,fill="both")
+    a=UserData(root,auth=True)
+    a.pack(expand=True,fill="x")
     root.mainloop()
