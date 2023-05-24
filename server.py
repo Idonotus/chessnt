@@ -6,6 +6,8 @@ import errno
 import logging
 import rooms
 import os
+import queue
+import dataclasses
 logging.basicConfig(format="[%(levelname)s] %(message)s",level=logging.DEBUG)
 database=sqlite3.connect("server.db",check_same_thread=False)
 database.execute("CREATE TABLE IF NOT EXISTS users (name TEXT UNIQUE, auth INT, pass TEXT, originaddress TEXT)")
@@ -23,26 +25,27 @@ dataaccess=threading.Lock()
 #
 #
 #
+
+@dataclasses.dataclass(order=True)
+class QueueItem:
+    priority: int
+    item:any = dataclasses.field(compare=False)
+
 class ExeQueuetioner:
     def __init__(self) -> None:
-        self.exequeue=[]
+        self.exequeue=queue.PriorityQueue()
     def start(self):
         while True:
-            if not len(self.exequeue)>0:
-                continue
-            com=self.exequeue[0]
+            com=self.exequeue.get(block=True)
             try:
                 com["com"](*com["args"],**com["kwargs"])
             except Exception:
                 logging.exception()
             finally:
-                self.exequeue.pop(0)
+                self.exequeue.task_done()
 
-    def addqueue(self,command,*args,**kwargs):
-        self.exequeue.append({"com":command,"args":args,"kwargs":kwargs})
-    
-    def fetchlast(self):
-        return self.exequeue[0]
+    def addqueue(self,command,*args,priority=1,**kwargs,):
+        self.exequeue.put(QueueItem(priority,{"com":command,"args":args,"kwargs":kwargs}))
 class Server(socket.socket, rooms.RoomServer):
     def __init__(self, handler, family: socket.AddressFamily  = socket.AF_INET, type: socket.SocketKind = socket.SOCK_STREAM) -> None:
         super().__init__(family, type)
@@ -62,6 +65,7 @@ class Server(socket.socket, rooms.RoomServer):
     def acceptCon(self):
         while self.acceptingCon:
             c,addr=self.accept()
+            # marked for decoupling
             dataaccess.acquire()
             r=database.execute("SELECT count(*) FROM addresses WHERE addr=?",(addr[0],))
             if not r.fetchone()[0]:
@@ -70,7 +74,8 @@ class Server(socket.socket, rooms.RoomServer):
             dataaccess.release()
             h=self.handler(c,addr,self)
             threading.Thread(target=h.start,daemon=True).start()
-            
+
+    # marked for decoupling       
     def login(self,connection,user,com):
         c=connection
         response=self.validatecredentials(com)
@@ -89,7 +94,8 @@ class Server(socket.socket, rooms.RoomServer):
         data={"com":"Login","user":com["name"],"mod":"UserAuth"}
         data=json.dumps(data)+"\0"
         c.sendall(data.encode())
-        
+    
+    # marked for decoupling       
     def userSignUp(self,connection,user,com):
         c=connection
         addr=user.addr[0]
@@ -125,6 +131,7 @@ class Server(socket.socket, rooms.RoomServer):
             return (False,"NameLengthError")
         return (True,"CredentialsSucess")
     
+    # marked for decoupling
     def createUser(self,auth,name,pasword,addr):
         dataaccess.acquire()
         try:

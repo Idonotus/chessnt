@@ -8,11 +8,13 @@ class Room:
         self.userlist={}
 
     def join(self,userobj):
+        if userobj.name in self.userlist:
+            return
         self.userlist[userobj.name]=userobj
 
     def leave(self,userobj):
         if userobj.name not in self.userlist:
-            return
+            raise FileExistsError
         self.userlist.pop(userobj.name)
         
         com={"com":"RoomDisconnect","id":self.name,"mod":"room"}
@@ -75,7 +77,7 @@ class chessRoom(Room):
         self.logic.teamturn=self.turn
         self.running=True
     
-    def authmove(self, userobj, pos):
+    def authMove(self, userobj, pos):
         p=self.logic.getpiece(pos=pos)
         if userobj.name not in self.userteams:
             return False
@@ -84,7 +86,7 @@ class chessRoom(Room):
         return True
 
 
-    def make_move(self,userobj,pos1,pos2):
+    def makeMove(self,userobj,pos1,pos2):
         if not self.running:
             return
         if not self.logic.ispiece(pos=pos1):
@@ -96,18 +98,43 @@ class chessRoom(Room):
         r=self.logic.movepiece(pos1,pos2)
         if r is None:
             return
-        self.gui.applychanges(r)
+        #include broadcast
+        ...
         self.endturn()
 
     def endturn(self):
         self.turn=next(self.turnorder)
         self.logic.teamturn=self.turn
 
-    def handlecommand(self,):
-        if self.running:
-            pass
-        else:
-            pass
+    def handlecommand(self,usr,com:dict):
+        match com:
+            case {"com":"getboard",**_u} if self.running:
+                r=self.exportBoard(self)
+                com={"com":"loadboard","data":r}
+                usr.send(com)
+            case {"com":"getusers",**_u}:
+                r=self.exportUserData(self)
+                com={"com":"loaduser","data":r}
+                usr.send(com)
+            case {"com":"setteam","user":name,"team":team,**_u} if not self.running:
+                self.setTeam(name,team)
+            case {"com":"makemove","pos1":pos1,"pos2":pos2,**_u} if self.running:
+                self.makeMove(usr,pos1,pos2)
+            case {"com":"getmoves","piecepos":pos,**_u} if self.running:
+                self.getpossiblemoves(pos)
+            
+    
+        
+    
+    def exportBoard(self,):
+        d=self.logic.data
+        dup=[]
+        for x,strip in enumerate(d):
+            dup.append([])
+            for y,p in enumerate(strip):
+                if isinstance(p,Chess.logic.Piece):
+                    p=p.GuiExport()
+                dup.append(p)
 class RoomServer:
     def __init__(self) -> None:
         self.roomindex={}
@@ -122,8 +149,6 @@ class RoomServer:
             raise FileExistsError
 
     def joinRoom(self,userobj,roomId:str,password=None):
-        if userobj.name not in self.userindex:
-            self.userindex[userobj.name]=[]
         if roomId not in self.roomindex:
             raise FileNotFoundError
         room=self.roomindex[roomId]
@@ -136,7 +161,7 @@ class RoomServer:
     def leaveRoom(self,userobj,roomId):
         if userobj.name not in self.userindex:
             return
-        self.userindex[userobj.name]=""
+        self.userindex.pop(userobj.name)
         self.roomindex[roomId].leave(userobj)
     
     def broacast(self,roomId,com,user=None):
@@ -144,7 +169,7 @@ class RoomServer:
             user=user.name
         if roomId not in self.roomindex:
             return
-        self.roomindex[roomId].broadcast(com,user.name)
+        self.roomindex[roomId].broadcast(com,user)
     
     def destroy(self,roomId):
         pass
@@ -158,23 +183,23 @@ class RoomServer:
         #createroom
         #joinroom
         #getrooms
-        match com["com"]:
-            case "createroom":
-                roomname=com["roomname"]
-                roompass=com["roompass"]
+        match com:
+            case {"forwardtoroom":True,"roomname":roomname,"com":_,**_u}:
+                self.ro
+            case {"com":"createroom","roomname":roomname,"roompass":roompass,**_u}:
                 try:
                     self.createRoom(Room,roomname,password=roompass)
                     user.send({"com":"joinedroom","mod":"Prromsel","type":"Simple"})
                 except FileExistsError:
                     user.clientError("RoomExists","Proomsel")
-            case "joinroom":
+            case {"com":"joinroom","roomname":roomname,"roompass":roompass,**_u}:
                 roomname=com["roomname"]
                 roompass=com["roompass"]
                 try:
                     self.joinRoom(user,roomname,roompass)
-                except EnvironmentError or FileNotFoundError:
+                except EnvironmentError or FileNotFoundError or FileExistsError:
                     user.clientError("AuthDeny","Proomsel")
-            case "getrooms":
+            case {"com":"getrooms",**_u}:
                 visiblerooms=[
                 {"name":room.name,"password":bool(room.password)}
                 for room in self.roomindex.values() if room.AuthSee
