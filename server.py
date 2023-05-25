@@ -4,7 +4,6 @@ import json
 import sqlite3
 import errno
 import logging
-import rooms
 import os
 logging.basicConfig(format="[%(levelname)s] %(message)s",level=logging.DEBUG)
 database=sqlite3.connect("server.db",check_same_thread=False)
@@ -23,6 +22,55 @@ dataaccess=threading.Lock()
 #
 #
 #
+
+class UserDataServer:
+    def __init__(self,db:sqlite3.Connection,dblock=threading.Lock()) -> None:
+        self.db=db
+        self.dblock=dblock
+
+    def createUser(self,auth,name,pasword,addr):
+        with self.dblock:
+            try:
+                database.execute("INSERT INTO users (name,auth,pass,originaddress) VALUES (?,?,?,?)",
+                                (name,auth,pasword,addr)
+                                )
+                database.commit()
+                success=True
+            except sqlite3.IntegrityError:
+                database.rollback()
+                success=False
+        return success
+    
+    def userjoined(self,addr):
+        with self.dblock:
+            r=database.execute("SELECT count(*) FROM addresses WHERE addr=?",(addr,))
+            if not r.fetchone()[0]:
+                database.execute("INSERT INTO addresses (addr,Userslotsleft) VALUES (?,1)",(addr,))
+                database.commit()
+    
+    def getuserslots(self,addr):
+        with self.dblock:
+            r=database.execute("SELECT Userslotsleft FROM addresses WHERE addr=?",(addr,))
+            database.rollback()
+        return int(r.fetchone()[0])
+    
+    def decrementslots(self,addr):
+        c=self.getuserslots(addr)
+        with self.dblock:
+            database.execute("UPDATE addresses SET Userslotsleft=? where addr=?",(c-1,addr))
+            database.commit()
+    
+    def getuser(self,name:str,password:str):
+        if not self.userindb(name,password):
+            raise FileNotFoundError
+        with self.dblock:
+            response=database.execute("SELECT * FROM users WHERE name=? AND pass=?",(name,password))
+        return response.fetchone()
+    def userindb(self,name:str,password:str):
+        with self.dblock:
+            response=database.execute("SELECT * FROM users WHERE name=? AND pass=?",(name,password))
+        return bool(response.fetchone())
+
 class ExeQueuetioner:
     def __init__(self) -> None:
         self.exequeue=[]
@@ -34,7 +82,7 @@ class ExeQueuetioner:
             try:
                 com["com"](*com["args"],**com["kwargs"])
             except Exception:
-                logging.exception()
+                logging.exception(msg="Qerror")
             finally:
                 self.exequeue.pop(0)
 
@@ -43,10 +91,10 @@ class ExeQueuetioner:
     
     def fetchlast(self):
         return self.exequeue[0]
-class Server(socket.socket, rooms.RoomServer):
+class Server(socket.socket):
     def __init__(self, handler, family: socket.AddressFamily  = socket.AF_INET, type: socket.SocketKind = socket.SOCK_STREAM) -> None:
         super().__init__(family, type)
-        self.HOST=os.uname()[1]
+        self.HOST=socket.gethostbyname(socket.gethostname())
         self.bind((self.HOST,4000))
         self.PORT=self.getsockname()[1]
         print("Listening on ", self.getsockname())
@@ -54,6 +102,7 @@ class Server(socket.socket, rooms.RoomServer):
         self.handler=handler
         self.roomindex={}
         self.userindex={}
+        self.dbserver=UserDataServer(database,dataaccess)
         self.exe=ExeQueuetioner()
         threading.Thread(target=self.exe.start,daemon=True).start()
         self.listen()
@@ -62,61 +111,46 @@ class Server(socket.socket, rooms.RoomServer):
     def acceptCon(self):
         while self.acceptingCon:
             c,addr=self.accept()
-            dataaccess.acquire()
-            r=database.execute("SELECT count(*) FROM addresses WHERE addr=?",(addr[0],))
-            if not r.fetchone()[0]:
-                database.execute("INSERT INTO addresses (addr,Userslotsleft) VALUES (?,1)",(addr[0],))
-                database.commit()
-            dataaccess.release()
+            self.dbserver.userjoined(addr[0])
             h=self.handler(c,addr,self)
             threading.Thread(target=h.start,daemon=True).start()
             
-    def login(self,connection,user,com):
-        c=connection
+    def login(self,user,com):
         response=self.validatecredentials(com)
         if not response[0]:
-            user.clientError(c,"l-"+response[1],"Plogin")
-        dataaccess.acquire()
-        response=database.execute("SELECT * FROM users WHERE name=? AND pass=?",(com["name"],com["pass"]))
-        dataaccess.release()
-        data=response.fetchone()
-        
-        if not data:
-            self.clientError(c,"l-UserNotFound","Plogin")
-            return
-        user.auth=data[1]
-        user.name=data[0]
-        data={"com":"Login","user":com["name"],"mod":"UserAuth"}
-        data=json.dumps(data)+"\0"
-        c.sendall(data.encode())
-        
-    def userSignUp(self,connection,user,com):
-        c=connection
-        addr=user.addr[0]
-        with dataaccess:
-            r=database.execute("SELECT Userslotsleft FROM addresses WHERE addr=?",(addr,))
-            database.rollback()
-        if 0<r.fetchone()[0]:
-            user.clientError(c,"s-CreationUnavailable","Plogin")
-            return
-        response=self.validatecredentials(com)
-        if not response[0]:
-            user.clientError(c,"s-"+response[1],"Plogin")
-            return
-        response=self.createUser(1,com["name"],com["pass"],addr)
-        if not response:
-            user.clientError(c,"s-UserCreationError","Plogin")
-            return
-        with dataaccess:
-            database.execute("UPDATE addresses SET Userslotsleft=0 where addr=?",(addr,))
-            database.commit()
-        data={"com":"Login","user":com["name"],"mod":"UserAuth"}
-        data=json.dumps(data)+"\0"
-        c.sendall(data.encode())
-        user.auth=data[1]
-        user.name=data[0]
+            user.clientError("l-"+response[1],"Plogin")
 
-    def validatecredentials(self,com)->tuple[bool,str,str]:
+        if not self.dbserver.userindb(com["name"],com["pass"]):
+            user.clientError("l-UserNotFound","Plogin")
+            return
+
+        
+        
+    def userSignUp(self,user,com):
+        addr=user.addr[0]
+        c=self.dbserver.getuserslots(addr)
+        if not c:
+            user.clientError("s-CreationUnavailable","Plogin")
+            return
+        response=self.validatecredentials(com)
+        if not response[0]:
+            user.clientError("s-"+response[1],"Plogin")
+            return
+        response=self.dbserver.createUser(1,com["name"],com["pass"],addr)
+        if not response:
+            user.clientError("s-UserCreationError","Plogin")
+            return
+        self.dbserver.decrementslots(addr)
+        data={"com":"Login","user":com["name"],"mod":"UserAuth"}
+
+    def senduserdata(self,user,name,password):
+        data=self.dbserver.getuser(name,password)
+        user.auth=data[1]
+        user.name=data[0]
+        data={"com":"Login","user":name,"mod":"UserAuth"}
+        user.send(data)
+
+    def validatecredentials(self,com):
         if not("pass" in com and "name" in com):
             return (False,"BlankError")
         if not 1<=len(com["pass"])<=50:
@@ -125,19 +159,7 @@ class Server(socket.socket, rooms.RoomServer):
             return (False,"NameLengthError")
         return (True,"CredentialsSucess")
     
-    def createUser(self,auth,name,pasword,addr):
-        dataaccess.acquire()
-        try:
-            database.execute("INSERT INTO users (name,auth,pass,originaddress) VALUES (?,?,?,?)",
-                             (name,auth,pasword,addr)
-                             )
-            database.commit()
-            success=True
-        except sqlite3.IntegrityError:
-            database.rollback()
-            success=False
-        dataaccess.release()
-        return success
+
         
     
     def leaveClient(self,user):
@@ -152,6 +174,8 @@ class UserHandler:
         self.c=c
         self.addr=addr
         self.server=server
+        self.clientError("CryBoutIt")
+
     def start(self):
         c=self.c
         s=self.server
@@ -175,7 +199,7 @@ class UserHandler:
                 self.redirectCommand(com)
             data=coms[-1:][0]
     
-    def send(self,data:str|dict):
+    def send(self,data):
         if isinstance(data,dict):
             data=json.dumps(data)
         data+="\0"
@@ -184,7 +208,7 @@ class UserHandler:
     def redirectCommand(self,com):
         c=self.c
         s=self.server
-        q=self.server.exe
+        self.q=self.server.exe
         if not self.user and com["mod"]!="userauth":
             self.clientError(c,"NotAuth",reason="NoLogin")
 
@@ -193,21 +217,19 @@ class UserHandler:
                 if self.user:
                     self.clientError(c,"NotAuth",reason="LoggedIn")
                 if com["com"]=="createUser":
-                    q.addqueue(s.userSignUp,c,self,com)
+                    self.q.addqueue(s.userSignUp,self,com)
                 if com["com"]=="loginUser":
-                    q.addqueue(s.login,c,self,com)
-        if com["mod"]=="rooms":
-            q.addqueue(s.room_usercommands,self,com)
+                    self.q.addqueue(s.login,self,com)
+        #if com["mod"]=="rooms":
+        #    q.addqueue(s.room_usercommands,self,com)
     
-    def clientError(self,errortype,mod=None, queue=False,**kwargs):
-        if mod==None:
-            mod="main"
+    def clientError(self,errortype,mod="main", queue=False,**kwargs):
         data={"com":"raiseError",
                 "mod":mod,
                 "type":errortype}
         data.update(kwargs)
         if queue:
-            data["cause"]=self.q.fetchlast
+            data["cause"]=self.q.fetchlast()
         data=json.dumps(data)+"\0"
         self.c.sendall(data.encode())
 

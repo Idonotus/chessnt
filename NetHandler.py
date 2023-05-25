@@ -125,7 +125,7 @@ class appNetClient(netClient):
                 handlerfunc(msg)
             data=sepdata[-1:][0]
     
-    def send(self, com:str|dict, **kwargs):
+    def send(self, com, **kwargs):
         if isinstance(com,dict) and len(kwargs)==0:
             data=json.dumps(com)
         else:

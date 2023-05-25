@@ -46,7 +46,7 @@ class mainApp:
         self.curpage=None
         self.s=appNetClient(self)
         self.pagelock=threading.Lock()
-        self.page("Proomsel")
+        self.page(ConnectPage.name)
         
     def page(self,page):
         with self.pagelock:
