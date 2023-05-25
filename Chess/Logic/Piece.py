@@ -1,6 +1,5 @@
 from ..vectormath import *
 import logging
-from typing import Self
 class Piece:
     name="piece"
     def __init__(self,logic,x=0,y=0,team=0):
@@ -72,7 +71,7 @@ class Piece:
             data[int(move.x)][int(move.y)]=takenpiece
         return safemoves
 
-    def __eq__(self, __value: Self) -> bool:
+    def __eq__(self, __value) -> bool:
         if not isinstance(__value,type(self)):
-            return
+            raise TypeError
         return (self.position,self.team)==(__value.position,__value.team)
