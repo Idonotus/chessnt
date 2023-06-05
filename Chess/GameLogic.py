@@ -109,7 +109,6 @@ class Logic:
         pass
 
     def addpiece(self,x,y,name,team,**kwargs):
-        name=random.choice(list(self.PIECES.keys()))
         name=name.lower()
         if name not in self.PIECES:
             logging.warn(f"Logic not found for piece \"{name}\". Using dummy instead")

@@ -73,5 +73,5 @@ class Piece:
 
     def __eq__(self, __value) -> bool:
         if not isinstance(__value,type(self)):
-            raise TypeError
+            return False
         return (self.position,self.team)==(__value.position,__value.team)
