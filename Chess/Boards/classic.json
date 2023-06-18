@@ -1,0 +1,15 @@
+{
+    "numteams":2,
+    "dim":[8,8],
+    "turnorder":[0,1],
+    "boarddata":[
+        [{"name": "rook","pos": [0,0],"team": 0},{"name": "pawn","pos": [0,1],"team": 0,"direction": 0},null,null,null,null,{"name": "pawn","pos": [0,6],"team": 1,"direction": 2},{"name": "rook","pos": [0,7],"team": 1}],
+        [{"name": "knight","pos": [1,0],"team": 0},{"name": "pawn","pos": [1,1],"team": 0,"direction": 0},null,null,null,null,{"name": "pawn","pos": [1,6],"team": 1,"direction": 2},{"name": "knight","pos": [1,7],"team": 1}],
+        [{"name": "bishop","pos": [2,0],"team": 0},{"name": "pawn","pos": [2,1],"team": 0,"direction": 0},null,null,null,null,{"name": "pawn","pos": [2,6],"team": 1,"direction": 2},{"name": "bishop","pos": [2,7],"team": 1}],
+        [{"name": "queen","pos": [3,0],"team": 0},{"name": "pawn","pos": [3,1],"team": 0,"direction": 0},null,null,null,null,{"name": "pawn","pos": [3,6],"team": 1,"direction": 2},{"name": "queen","pos": [3,7],"team": 1}],
+        [{"name": "king","pos": [4,0],"team": 0},{"name": "pawn","pos": [4,1],"team": 0,"direction": 0},null,null,null,null,{"name": "pawn","pos": [4,6],"team": 1,"direction": 2},{"name": "king","pos": [4,7],"team": 1}],
+        [{"name": "bishop","pos": [5,0],"team": 0},{"name": "pawn","pos": [5,1],"team": 0,"direction": 0},null,null,null,null,{"name": "pawn","pos": [5,6],"team": 1,"direction": 2},{"name": "bishop","pos": [5,7],"team": 1}],
+        [{"name": "knight","pos": [6,0],"team": 0},{"name": "pawn","pos": [6,1],"team": 0,"direction": 0},null,null,null,null,{"name": "pawn","pos": [6,6],"team": 1,"direction": 2},{"name": "knight","pos": [6,7],"team": 1}],
+        [{"name": "rook","pos": [7,0],"team": 0},{"name": "pawn","pos": [7,1],"team": 0,"direction": 0},null,null,null,null,{"name": "pawn","pos": [7,6],"team": 1,"direction": 2},{"name": "rook","pos": [7,7],"team": 1}]
+    ]
+}
