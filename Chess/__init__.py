@@ -132,15 +132,12 @@ class Game:
         d=Stateloader.getBoard(name)
         return Game.makeboard(d)
 
-    @staticmethod
-    def makeboard(data):
+    def __init__(self,data):
         if not Stateloader.valid_data(data):
             raise TypeError
         sizedata=data["dim"]
-        g=Game()
-        g.gui=Graphics.Gui.genboard(tk.Tk(),data["numteams"],sizedata,data["boarddata"],g.signal)
-        g.gui.pack()
-        g.logic=Logic.Logic.genboard(data["numteams"],sizedata,data["boarddata"])
-        g.conductor=turngen(data["turnorder"])
-        g.end=False
-        return g
+        self.gui=Graphics.Gui.genboard(tk.Tk(),data["numteams"],sizedata,data["boarddata"],self.signal)
+        self.gui.pack()
+        self.logic=Logic.Logic.genboard(data["numteams"],sizedata,data["boarddata"])
+        self.conductor=turngen(data["turnorder"])
+        self.end=False

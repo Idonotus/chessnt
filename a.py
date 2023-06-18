@@ -1,2 +1,2 @@
 import Chess
-Chess.makeclassic()
+Chess.Game.loadpresetboard("classic")
