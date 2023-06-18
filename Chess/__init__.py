@@ -1,7 +1,5 @@
 import tkinter as tk
-from . import GameLogic as logic
-from . import GameGraphics as gui
-
+from . import Logic, Graphics, Stateloader
 
 def turngen(turnorder:list):
     while True:
@@ -45,10 +43,13 @@ class TurnIter:
     def activeteam(self,teamid: int):
         self.validateorder()
         t=[]
+        teamid+=1
+        teamid*=-1
+
         for i,o in enumerate(self.torder):
             if teamid in o:
                 for i,item in enumerate(o):
-                    if ((item*-1)-1)==teamid:
+                    if item==teamid:
                         item+=1
                         item*=-1
                     o[i]=item
@@ -77,14 +78,6 @@ pieces={
 classic="8x8|b|r0,n0,b0,q0,k0,k0,n0,r0|nr|p0*8|nr|o*8|nr|o*8|nr|o*8|nr|o*8|nr|p1*8|nr|r1,n1,b1,q1,k1,b1,n1,r1"
 class Game:
     """Allows for communication between modules and generally parses things together"""
-    def __init__(self,master=None,height=8,width=8,tile=50) -> None:
-        if not master:
-            master=tk.Tk()
-        self.gui=gui.Gui(master,width,height,tile,signal=self.signal)
-        self.gui.pack()
-        self.logic=logic.Logic(width,height,2,self)
-        self.conductor=turngen([1,0])
-        self.end=False
     def addpiece(self,name,x,y,team,**kwargs):
         self.logic.addpiece(x=x,y=y,name=name,team=team,**kwargs)
         self.gui.addpiece(x=x,y=y,name=name,team=team)
@@ -94,10 +87,6 @@ class Game:
         r=self.logic.reqmovepiece(pos1,pos2)
         if r is None:
             return
-        for diff in r:
-            if diff[1] is None:
-                continue
-            diff[1]=diff[1].GuiExport()
         self.gui.applychanges(r)
         self.endturn()
     def endturn(self):
@@ -124,26 +113,34 @@ class Game:
             self.makemove(*args)
         if sig=="pickup_piece":
             self.highlightmoves(*args)
-def makeclassic():
-    makeboard(classic)
 
-def makeboard(data):
-    data=data.split("|b|")
-    sizedata=data[0].split("x")
-    g=Game(master=tk.Tk(),width=int(sizedata[0]),height=int(sizedata[1]),tile=75)
-    for y,row in enumerate(data[1].split("|nr|")):
-        x=0
-        for tile in row.split(","):
-            places=1
-            p=tile
-            if "*" in tile:
-                tile=tile.split("*")
-                p=tile[0]
-                places=int(tile[1])
-            for _ in range(places):
-                if p[0]=="o":
-                    continue
-                g.addpiece(pieces[p[0]],x,y,int(p[1]))
-                x+=1
-    g.start()
-    tk.mainloop()
+    @staticmethod
+    def blankboard(master,height=8,width=8,tile=50,numteams=2,turnorder=[0,1]):
+        g=Game()
+        if not master:
+            master=tk.Tk()
+        g.master=master
+        g.gui=Graphics.Gui(master,width,height,tile,signal=g.signal)
+        g.gui.pack()
+        g.logic=Logic.Logic(width,height,numteams)
+        g.conductor=turngen(turnorder)
+        g.end=False
+        return g
+    
+    @staticmethod
+    def loadpresetboard(name):
+        d=Stateloader.getBoard(name)
+        return Game.makeboard(d)
+
+    @staticmethod
+    def makeboard(data):
+        if not Stateloader.valid_data(data):
+            raise TypeError
+        sizedata=data["dim"]
+        g=Game()
+        g.gui=Graphics.Gui.genboard(tk.Tk(),data["numteams"],sizedata,data["boarddata"],g.signal)
+        g.gui.pack()
+        g.logic=Logic.Logic.genboard(data["numteams"],sizedata,data["boarddata"])
+        g.conductor=turngen(data["turnorder"])
+        g.end=False
+        return g

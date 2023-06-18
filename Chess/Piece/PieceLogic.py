@@ -1,4 +1,4 @@
-from .Piece import Piece
+from .Logic import Piece
 from ..vectormath import *
 
 
@@ -38,6 +38,12 @@ class Pawn(Piece):
                 continue
             availtakes.append(take)
         return super().validatecheck(availmoves,availtakes,cc)
+    
+    def export(self):
+        e=super().export()
+        e.update(direction=self.direction)
+        return e
+
     def move(self,move,data):
         super().move(move,data)
         if len(self.startmove)!=0:

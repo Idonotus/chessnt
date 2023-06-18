@@ -1,7 +1,8 @@
-from .Logic import PieceLogic
-from .Logic.Piece import Piece
+from .Piece import PieceLogic
+from .Piece.Logic import Piece
+from .vectormath import vector
 import logging
-import random
+
 class Team:
     """Container for team data"""
     def __init__(self) -> None:
@@ -10,7 +11,7 @@ class Team:
 
 class Logic:
     """Handles chess logic. Essential for chess to actually work"""
-    def __init__(self,width,height,numteams,game) -> None:
+    def __init__(self,width,height,numteams) -> None:
         self.WIDTH=width
         self.HEIGHT=height
         self.data=[]
@@ -24,7 +25,6 @@ class Logic:
             for _ in range(height):
                 self.data[x].append(None)
         self.PIECES=PieceLogic.getallpieces()
-        self.game=game
     
     def setinactive(self,teamid):
         if teamid in self.inactiveteams:
@@ -66,8 +66,8 @@ class Logic:
                 continue
             teammoves=self.getallmoves(teams=[i],cc=True)[2]
             if len(teammoves)==0:
-                if self.game!=None:
-                    self.game.teamlose(i)
+                return i+1
+        return False
     
     def matecheck(self,team):
         return len(self.getallmoves(teams=[team]))>0
@@ -106,10 +106,8 @@ class Logic:
             takes+=b
         actions=moves+takes
         return moves,takes,actions
-        pass
 
     def addpiece(self,x,y,name,team,**kwargs):
-        name=random.choice(list(self.PIECES.keys()))
         name=name.lower()
         if name not in self.PIECES:
             logging.warn(f"Logic not found for piece \"{name}\". Using dummy instead")
@@ -121,7 +119,11 @@ class Logic:
         self.data[x][y]=self.PIECES[name](logic=self,x=x,y=y,team=team,**kwargs)
 
     def getdifferences(self,base:list,changed:list):
-        diff=[[(x,y),changed[x][y]] for x in range(len(changed)) for y in range(len(changed[x])) if changed[x][y]!=base[x][y]]
+        diff=[]
+        for dif_pair in [[(x,y),changed[x][y]] for x in range(len(changed)) for y in range(len(changed[x])) if changed[x][y]!=base[x][y]]:
+            if isinstance(dif_pair[1],Piece):
+                dif_pair[1]=dif_pair[1].export()
+            diff.append(dif_pair)
         return diff
 
     def canmove(self,pos1,pos2,team=None):
@@ -149,8 +151,19 @@ class Logic:
     def ispiece(self,*, pos=None, x=None, y=None):
         return bool(self.getpiece(pos=pos,x=x,y=y))
 
-    def getpiece(self,*, pos=None, x=None, y=None):
-        if pos:
+    def getpiece(self,*, pos=None, x=None, y=None) -> Piece:
+        if isinstance(pos,vector):
             return self.data[int(pos.x)][int(pos.y)]
         if not (x is None and y is None):
             return self.data[x][y]
+    @staticmethod
+    def genboard(numteams,dim,boarddata):
+        l=Logic(dim[0],dim[1],numteams)
+        for ystrip in boarddata:
+            for tile in ystrip:
+                if not tile:
+                    continue
+                tile=tile.copy()
+                x, y=tile.pop("pos")
+                l.addpiece(x=x,y=y,**tile)
+        return l

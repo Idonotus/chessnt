@@ -6,7 +6,9 @@ import logging
 ERRORS={
     "NameLenErr": "Room name has to be between 3 and 20 characters",
     "PrivTypeErr" : "PrivTypeErr: Please contact dev",
-    "PassLenErr" : "Password must be less than 30 characters"
+    "PassLenErr" : "Password must be less than 30 characters",
+    "RoomExists" : "The room you are trying to create exists",
+    "AuthDeny" : "There was an error when connecting to room"
 }
 SUCCESS={
     "CredSuccess",
@@ -32,7 +34,7 @@ class GetPassPopUp(tk.Toplevel):
         if self.password.isvalid():
             password=self.password.get()
             self.master.reqjoinroom(self.roomname,password)
-            self.destroy
+            self.destroy()
 
 class DJPopUp(tk.Toplevel):
     def __init__(self,master):
@@ -114,9 +116,12 @@ class RoomPage(ttk.Frame):
         roomselcon.grid_columnconfigure(1,weight=1)
         roomselcon.grid_columnconfigure(2,weight=1)
         roomselcon.grid_rowconfigure(0,weight=1)
-        ttk.Button(roomselcon,text="Refresh",command=self.refresh).grid(padx=2,row=1,column=2,sticky="WE")
-        ttk.Button(roomselcon,text="Join room",command=self.joinselected).grid(padx=2,row=1,column=0,sticky="WE")
-        ttk.Button(roomselcon,command=lambda:self.popup(DJPopUp),text="Join directly").grid(row=1,column=1,sticky="WE",padx=2)
+        ttk.Button(roomselcon,text="Create room",command=lambda: self.popup(CreationPopUp))
+        ttk.Button(roomselcon,text="Join room",command=self.joinselected).grid(padx=2,row=1,column=1,sticky="WE")
+        ttk.Button(roomselcon,command=lambda:self.popup(DJPopUp),text="Join directly").grid(row=1,column=2,sticky="WE",padx=2)
+        ttk.Button(roomselcon,text="Refresh",command=self.refresh).grid(padx=2,row=1,column=3,sticky="WE")
+        
+        
 
     def refresh(self):
         com={
@@ -142,8 +147,6 @@ class RoomPage(ttk.Frame):
 
     def popup(self,popupmenu,**kwargs):
         if self.curpopup:
-            if self.curpopup.awaiting:
-                return
             self.curpopup.destroy()
         self.curpopup=popupmenu(self,**kwargs)
 
@@ -187,7 +190,7 @@ class RoomPage(ttk.Frame):
     
     def handleCommand(self,com):
         if com["com"]=="joinedroom":
-            self.main.page("Pchessroom")
+            self.main.page(com["type"])
             
 
 def roomcredcheck(roomname,roompass="",private=False):

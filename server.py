@@ -7,11 +7,10 @@ import logging
 import os
 import queue
 import dataclasses
+import rooms
 logging.basicConfig(format="[%(levelname)s] %(message)s",level=logging.DEBUG)
 database=sqlite3.connect("server.db",check_same_thread=False)
-database.execute("CREATE TABLE IF NOT EXISTS users (name TEXT UNIQUE, auth INT, pass TEXT, originaddress TEXT)")
-database.execute("CREATE TABLE IF NOT EXISTS addresses (addr TEXT UNIQUE, Userslotsleft INT)")
-database.commit()
+
 dataaccess=threading.Lock()
 # --------TO DO---------
 # +Login and leave#
@@ -35,48 +34,52 @@ class UserDataServer:
     def __init__(self,db:sqlite3.Connection,dblock=threading.Lock()) -> None:
         self.db=db
         self.dblock=dblock
+        self.db.execute("CREATE TABLE IF NOT EXISTS users (name TEXT UNIQUE, auth INT, pass TEXT, originaddress TEXT)")
+        self.db.execute("CREATE TABLE IF NOT EXISTS addresses (addr TEXT UNIQUE, Userslotsleft INT)")
+        self.db.commit()
 
     def createUser(self,auth,name,pasword,addr):
         with self.dblock:
             try:
-                database.execute("INSERT INTO users (name,auth,pass,originaddress) VALUES (?,?,?,?)",
+                self.db.execute("INSERT INTO users (name,auth,pass,originaddress) VALUES (?,?,?,?)",
                                 (name,auth,pasword,addr)
                                 )
-                database.commit()
+                self.db.commit()
                 success=True
             except sqlite3.IntegrityError:
-                database.rollback()
+                self.db.rollback()
                 success=False
         return success
     
     def userjoined(self,addr):
         with self.dblock:
-            r=database.execute("SELECT count(*) FROM addresses WHERE addr=?",(addr,))
+            r=self.db.execute("SELECT count(*) FROM addresses WHERE addr=?",(addr,))
             if not r.fetchone()[0]:
-                database.execute("INSERT INTO addresses (addr,Userslotsleft) VALUES (?,1)",(addr,))
-                database.commit()
+                self.db.execute("INSERT INTO addresses (addr,Userslotsleft) VALUES (?,1)",(addr,))
+                self.db.commit()
     
     def getuserslots(self,addr):
         with self.dblock:
-            r=database.execute("SELECT Userslotsleft FROM addresses WHERE addr=?",(addr,))
-            database.rollback()
+            r=self.db.execute("SELECT Userslotsleft FROM addresses WHERE addr=?",(addr,))
+            self.db.rollback()
         return int(r.fetchone()[0])
     
     def decrementslots(self,addr):
         c=self.getuserslots(addr)
         with self.dblock:
-            database.execute("UPDATE addresses SET Userslotsleft=? where addr=?",(c-1,addr))
-            database.commit()
+            self.db.execute("UPDATE addresses SET Userslotsleft=? where addr=?",(c-1,addr))
+            self.db.commit()
     
     def getuser(self,name:str,password:str):
         if not self.userindb(name,password):
             raise FileNotFoundError
         with self.dblock:
-            response=database.execute("SELECT * FROM users WHERE name=? AND pass=?",(name,password))
+            response=self.db.execute("SELECT * FROM users WHERE name=? AND pass=?",(name,password))
         return response.fetchone()
+
     def userindb(self,name:str,password:str):
         with self.dblock:
-            response=database.execute("SELECT * FROM users WHERE name=? AND pass=?",(name,password))
+            response=self.db.execute("SELECT * FROM users WHERE name=? AND pass=?",(name,password))
         return bool(response.fetchone())
 
 class ExeQueuetioner:
@@ -92,7 +95,7 @@ class ExeQueuetioner:
             finally:
                 self.exequeue.task_done()
 
-    def addqueue(self,command,*args,priority=1,**kwargs,):
+    def addqueue(self,command,priority=1,*args,**kwargs,):
         self.exequeue.put(QueueItem(priority,{"com":command,"args":args,"kwargs":kwargs}))
 class Server(socket.socket, rooms.RoomServer):
     def __init__(self, handler, family: socket.AddressFamily  = socket.AF_INET, type: socket.SocketKind = socket.SOCK_STREAM) -> None:
@@ -107,6 +110,7 @@ class Server(socket.socket, rooms.RoomServer):
         self.userindex={}
         self.dbserver=UserDataServer(database,dataaccess)
         self.exe=ExeQueuetioner()
+        self.roomserver=rooms.RoomServer()
         threading.Thread(target=self.exe.start,daemon=True).start()
         self.listen()
         self.acceptCon()
@@ -223,8 +227,8 @@ class UserHandler:
                     self.q.addqueue(s.userSignUp,self,com)
                 if com["com"]=="loginUser":
                     self.q.addqueue(s.login,self,com)
-        #if com["mod"]=="rooms":
-        #    q.addqueue(s.room_usercommands,self,com)
+        if com["mod"]=="rooms":
+            self.q.addqueue(s.roomserver.usercommands,self,com)
     
     def clientError(self,errortype,mod="main", queue=False,**kwargs):
         data={"com":"raiseError",

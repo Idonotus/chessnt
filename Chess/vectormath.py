@@ -1,6 +1,7 @@
 import math
 import typing
 class vector:
+    __match_args__ = ("x","y")
     def __init__(self,x:typing.Union[int,float],y:typing.Union[int,float]) -> None:
         self.x=float(x)
         self.y=float(y)
@@ -70,7 +71,10 @@ class vector:
             y=temp
             full.append(vector(x,y))
         return full
-    
+    @staticmethod
+    def fromtuple(o:tuple):
+        return vector(o[0],o[1])
+
     def intcoords(self):
         return int(self.x), int(self.y)
 class shape:

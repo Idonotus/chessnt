@@ -6,7 +6,7 @@ ERRORDEF = {
     "UserCreationError":"User already exists",
     "BlankError":"Username or password not entered",
     "PassLengthError":"Passwords gave to be between 1",
-    "NameLengthError":"Username or password too long or sgor",
+    "NameLengthError":"Username or password too long or short",
     "UserNotFound":"User not found"
 }
 class UserAuth:
@@ -15,6 +15,8 @@ class UserAuth:
     def handleCommand(self,com):
         if com["com"]=="Login":
             self.main.page("Proomsel")
+        if com["com"]=="Logout":
+            self.main.page("Plogin")
 
 class LoginPage(ttk.Frame):
     name="Plogin"

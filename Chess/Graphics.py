@@ -1,5 +1,5 @@
 from .vectormath import *
-from .Graphics.Piece import SpritePiece
+from .Piece.Sprite import Sprite
 import logging
 import tkinter as tk
 import json
@@ -46,6 +46,17 @@ class Gui(tk.Canvas):
                 self.tag_lower(rect)
                 self.tiles[x].append(rect)
     
+    @staticmethod
+    def genboard(master,dim,boarddata,signal):
+        g=Gui(master=master,width=dim[0],height=dim[1],signal=signal)
+        for ystrip in boarddata:
+            for tile in ystrip:
+                if not tile:
+                    continue
+                x, y=tile["pos"] 
+                g.addpiece(x=x,y=y,name=tile["name"],team=tile["team"])
+        return g
+
     def setstylesheet(self,sheet):
         if not isinstance(sheet,dict):
             raise TypeError
@@ -65,7 +76,7 @@ class Gui(tk.Canvas):
         if not 0<=x<len(self.data) or not 0<=y<len(self.data[x]):
             logging.warn(f"Coordinate x:{x} y:{y} of bounds")
             return
-        p=SpritePiece(self,self.TILESIZE,x=x,y=y,team=team,sprite=self.SPRITES[name])
+        p=Sprite(self,self.TILESIZE,x=x,y=y,team=team,sprite=self.SPRITES[name])
         self.data[x][y]=p
     
     def settile(self,x,y,name=None,team=None):
@@ -98,17 +109,30 @@ class Gui(tk.Canvas):
             atiles+=[vector(self.coords(obj)[0],self.coords(obj)[1])/self.TILESIZE for obj in self.find_withtag(highlight)]
         self.highlighttiles(atiles,highlight="normal")
 
+    def highlightalltiles(self,highlight=""):
+        if highlight not in self.highlights:
+            highlight="default"
+        color=self.highlights[highlight]
+        for x,ystrip in enumerate(self.tiles):
+            for y,tile in enumerate(ystrip):
+                fill=color[(x+y)%len(color)]
+                self.itemconfigure(tile,fill=fill,tags=(highlight,))
+
     def highlighttiles(self,tiles,*,color:list=[],highlight=""):
         if highlight not in self.highlights:
             if color is None or color == []:
+                highlight="default"
                 color=self.highlights["default"]
+            else:
+                highlight="temp"
         else:
             color=self.highlights[highlight]
         for pos in tiles:
             if isinstance(pos,vector):
-                fill=color[int(pos.x+pos.y)%len(color)]
-                self.itemconfigure(self.tiles[int(pos.x)][int(pos.y)],fill=fill,tags=(highlight,))
-    
+                x,y=pos.intcoords()
+                fill=color[(x+y)%len(color)]
+                self.itemconfigure(self.tiles[x][y],fill=fill,tags=(highlight,))
+
     def applychanges(self,changes):
         for item in changes:
             if item[1]:

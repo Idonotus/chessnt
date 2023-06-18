@@ -1,5 +1,6 @@
 from ..vectormath import *
 import logging
+
 class Piece:
     name="piece"
     def __init__(self,logic,x=0,y=0,team=0):
@@ -10,15 +11,19 @@ class Piece:
         self.availtakes=[]
         self.team=team
     
-    def GuiExport(self):
-        return {"name":self.name,"pos":self.position,"team":self.team}
+    def getallmoves(self):
+        return self.availmoves+self.availtakes
+
+    def export(self):
+        return {"name":self.name,"pos":self.position.intcoords(),"team":self.team}
 
     def move(self,move,data):
         if move not in self.availmoves and move not in self.availtakes:
             return
         x, y=self.position.intcoords()
+        mx, my=move.intcoords()
         data[x][y]=None
-        data[int(move.x)][int(move.y)]=self
+        data[mx][my]=self
         self.position=move
 
     def canmove(self,move):
@@ -73,5 +78,5 @@ class Piece:
 
     def __eq__(self, __value) -> bool:
         if not isinstance(__value,type(self)):
-            raise TypeError
+            return False
         return (self.position,self.team)==(__value.position,__value.team)

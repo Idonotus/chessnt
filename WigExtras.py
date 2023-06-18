@@ -14,8 +14,8 @@ class Username(ttk.Frame):
             s=font.nametofont("TkDefaultFont").actual()["size"]
         else:
             s=font.nametofont(self.label.cget("font")).actual()["size"]
-        textwidth=self.winfo_width()*3/2
-        possiblelen=int(textwidth//s)-1
+        textwidth=self.winfo_width()*3/4
+        possiblelen=int(textwidth//s)
         if possiblelen>=len(self.text):
             self.label.configure(text=self.text)
             return
@@ -27,17 +27,29 @@ class Username(ttk.Frame):
         self.label.configure(text=t)
 
 class UserData(ttk.Frame):
-    def __init__(self,master:tk.Widget,username="Dumbrguhhdhjkass",auth=False,possibleteams=(0,1),team=1,command=None):
+    def __init__(self,master:tk.Widget,username="Dumbrguhhdhjkass",auth=False,possibleteams=(0,1),team=None,command=None):
         super().__init__(master=master)
         self.grid_columnconfigure(0,weight=1)
         self.user=Username(self,username)
         self.user.grid(row=0,column=0,sticky="WE")
         ttk.Label(self,text="Team").grid(row=0,column=1,padx=10,pady=6)
         self.command=command
+        self.curteam=team
         self.team=None
         self.setPossibleTeams(possibleteams)
         self.setAuth(auth)
-        self.team.grid(row=0,column=2)
+
+
+    def setTeam(self,team):
+        if team is None:
+            team="None"
+        if team not in self.possibleteams:
+            raise KeyError
+        self.curteam=team
+        if isinstance(self.team,ttk.Combobox):
+            self.team.current(self.possibleteams.index(team))
+        else:
+            self.team["text"]=team
 
     def getUsername(self):
         return self.user.text
@@ -50,17 +62,20 @@ class UserData(ttk.Frame):
     
     def _teamchanged(self,e):
         if self.command:
-            self.command(self.getTeam)
+            self.command(self.getTeam(),self)
+            self.setTeam(self.curteam)
     
     def setAuth(self,auth:bool):
         if self.team:
-            self.team.delete()
+            self.team.destroy()
         if auth:
             self.team=ttk.Combobox(self,width=5,state="readonly")
             self.team.bind("<<ComboboxSelected>>",self._teamchanged)
             self.team["values"]=self.possibleteams
         else:
             self.team=ttk.Label(self,text="")
+        self.team.grid(row=0,column=2)
+        self.setTeam(self.curteam)
     
     def setPossibleTeams(self,choices):
         self.possibleteams=list(choices).copy()
@@ -147,24 +162,25 @@ class ListBox(ttk.Frame):
 class UserList(ListBox):
     def __init__(self, master, height=0, width=0):
         super().__init__(master, height, width)
-        
+        self.users={}
+    
+    def setTeam(self,name:str,team:int|str):
+        self.users[name].setTeam(team)
 
-
-    def insert(self, item: UserData, index=tk.END):
+    def insert(self, item: UserData):
         if not isinstance(item,UserData):
             raise TypeError
-        return super().insert(item, index)
-
-    def findObj(self,name:str):
-        for item in self.listchildren:
-            if item.getUsername()==name:
-                return item
+        n=item.getUsername()
+        if n in self.users:
+            raise FileExistsError
+        self.users[n]=item
+        return super().insert(item, tk.END)
     
     def setAuth(self,name:str,auth:bool):
-        self.findObj(name).setAuth(auth)
+        self.users[name].setAuth(auth)
     
     def removeName(self, name:str):
-        return super().remove(self.listchildren.index(self.findObj(name)))
+        return super().remove(self.listchildren.index(self.users.pop(name)))
 
 class ErrLabel(ttk.Label):
     def __init__(self, master= None, *, anchor = None, background = None, border = None, borderwidth = None, class_ = None, compound = None, cursor = None, font = None, foreground = None, image = None, justify = None, name = None, padding = None, relief = None, state = None, style = "Error.TLabel", takefocus = None, text = None, textvariable = None, underline = None, width = None, wraplength = None) -> None:

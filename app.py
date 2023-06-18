@@ -2,6 +2,7 @@ from Page_Login import LoginPage
 from Page_Con import ConnectPage
 from Page_Rooms import RoomPage
 from NetHandler import appNetClient
+from Page_Chess import ChessPage
 import tkinter as tk
 from tkinter import ttk
 import logging
@@ -16,7 +17,8 @@ logging.basicConfig(format="[%(levelname)s] %(message)s",level=logging.DEBUG)
 pagelookup={
     ConnectPage.name:ConnectPage,
     LoginPage.name:LoginPage,
-    RoomPage.name:RoomPage
+    RoomPage.name:RoomPage,
+    ChessPage.name:ChessPage
 }
 
 class mainApp:
@@ -57,8 +59,10 @@ class mainApp:
             self.curpage=pagelookup[page](self.win,self)
 
     def handleCommand(self,command):
-        if "mod" not in command:
+        if "mod" not in command or "com" not in command:
             return
+        if command["com"]=="raiseError":
+            logging.error(f"Server exception recieved:\n{command}")
         if command["mod"] in self.backproc:
             self.backproc[command["mod"]].handleCommand(command)
         elif command["mod"] == self.curpage.name:
