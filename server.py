@@ -25,9 +25,10 @@ dataaccess=threading.Lock()
 #
 
 @dataclasses.dataclass(order=True)
-class QueueItem:
+class QueuedThread:
     priority: int
-    item:any = dataclasses.field(compare=False)
+    item:threading.Thread = dataclasses.field(compare=False)
+
 
 
 class UserDataServer:
@@ -87,16 +88,17 @@ class ExeQueuetioner:
         self.exequeue=queue.PriorityQueue()
     def start(self):
         while True:
-            com=self.exequeue.get(block=True)
+            com:QueuedThread=self.exequeue.get(block=True)
             try:
-                com["com"](*com["args"],**com["kwargs"])
+                com.item.run()
             except Exception:
                 logging.exception(msg="Qerror")
             finally:
                 self.exequeue.task_done()
 
-    def addqueue(self,command,priority=1,*args,**kwargs,):
-        self.exequeue.put(QueueItem(priority,{"com":command,"args":args,"kwargs":kwargs}))
+    def addqueue(self,thread:threading.Thread,priority=1):
+        self.exequeue.put(QueuedThread(priority,thread))
+        return thread.join() 
 class Server(socket.socket, rooms.RoomServer):
     def __init__(self, handler, family: socket.AddressFamily  = socket.AF_INET, type: socket.SocketKind = socket.SOCK_STREAM) -> None:
         super().__init__(family, type)
