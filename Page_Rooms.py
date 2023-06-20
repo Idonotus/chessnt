@@ -196,7 +196,7 @@ class RoomPage(ttk.Frame):
 def roomcredcheck(roomname,roompass="",private=False):
     if not 3<=len(roomname)<=20:
         return (False,"NameLenErr")
-    if not(private is False or private is True):
+    if isinstance(private,bool):
         return (False,"PrivTypeErr")
     if len(roompass)>30:
         return (False,"PassLenErr")
