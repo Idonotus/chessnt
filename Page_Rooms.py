@@ -15,7 +15,7 @@ SUCCESS={
     "CreationSuccess",
     "JoinSuccess"
 }
-
+...
 class GetPassPopUp(tk.Toplevel):
     def __init__(self,master,roomname):
         super().__init__(master)
