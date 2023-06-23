@@ -13,7 +13,7 @@ class ChessPage(ttk.Frame):
             self.s=main.s
             self.s.send({"mod":"rooms","forwardtoroom":True,"com":"getusers"})
             self.s.send({"mod":"rooms","forwardtoroom":True,"com":"getboard"})
-            self.s.send({"com":"getauth","action":"start","mod":"rooms","forwardtoroom":True,})
+            self.s.send({"com":"getauth","action":"flowcontrol","mod":"rooms","forwardtoroom":True,})
         else:
             self.s=None
 

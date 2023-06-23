@@ -1,2 +1,4 @@
 import Chess
-Chess.Game.loadpresetboard("classic")
+g=Chess.Game.loadpresetboard("classic")
+g.start()
+g.gui.mainloop()

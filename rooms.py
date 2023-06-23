@@ -97,6 +97,7 @@ class ChessRoom(Room):
         sizedata=data["dim"]
         teamcount=data["numteams"]
         board=data["boarddata"]
+        self.torder=data["turnorder"]
         self.logic=Chess.Logic.Logic.genboard(teamcount,sizedata,board)
         self.turnorder=Chess.turngen(data["turnorder"])
         self.turn=next(self.turnorder)
@@ -136,13 +137,11 @@ class ChessRoom(Room):
         match com:
             case {"com":"getauth","action":"flowcontrol",**_u}:
                 c={"com":"setauth","action":"flowcontrol","mod":self.PAGENAME,"auth":self.userauths[usr.name]>=3}
+                usr.send(c)
             case {"com":"getboard",**_u} if self.running:
                 r=self.exportBoard(self)
                 com={"com":"loadboard","data":r,"mod":self.PAGENAME}
                 usr.send(com)
-                if not self.running:
-                    c={"com":"highlightboard","highlight":"default"}
-                    usr.send(c)
             case {"com":"getusers",**_u}:
                 r=self.exportUserData(usr)
                 com={"com":"loaduser","data":r,"mod":self.PAGENAME}
@@ -175,7 +174,9 @@ class ChessRoom(Room):
 
     def exportBoard(self,):
         if not self.running:
-            return Chess.Stateloader.getBoard(self.boardname)
+            r=Chess.Stateloader.getBoard(self.boardname)
+            r["running"]=False
+            return 
         d=self.logic.data
         dup=[]
         for x,strip in enumerate(d):
@@ -184,7 +185,14 @@ class ChessRoom(Room):
                 if isinstance(p,Chess.logic.Piece):
                     p=p.export()
                 dup[x].append(p)
-        return dup
+        bd={
+            "dim":[self.logic.WIDTH,self.logic.HEIGHT],
+            "turnorder":self.turnorder,
+            "numteams":2,
+            "boarddata":dup,
+            "running":True
+        }
+        return bd
     
     def exportUserData(self,userobj):
         d=[]

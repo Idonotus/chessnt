@@ -130,13 +130,13 @@ class Game:
     @staticmethod
     def loadpresetboard(name):
         d=Stateloader.getBoard(name)
-        return Game.makeboard(d)
+        return Game(d)
 
     def __init__(self,data):
         if not Stateloader.valid_data(data):
             raise TypeError
         sizedata=data["dim"]
-        self.gui=Graphics.Gui.genboard(tk.Tk(),data["numteams"],sizedata,data["boarddata"],self.signal)
+        self.gui=Graphics.Gui.genboard(tk.Tk(),sizedata,data["boarddata"],self.signal)
         self.gui.pack()
         self.logic=Logic.Logic.genboard(data["numteams"],sizedata,data["boarddata"])
         self.conductor=turngen(data["turnorder"])
