@@ -26,6 +26,8 @@ class Room:
         return len(self.userlist)>=1
 
     def broadcast(self,com,name=None):
+        if "mod" not in com:
+            com["mod"]=self.PAGENAME
         for u in self.userlist:
             if u.name==name:
                 continue
@@ -33,8 +35,8 @@ class Room:
     
     def close(self):
         for user in self.userlist.items():
-            c=user[1].c
             com={"com":"RoomDisconnect","id":self.name,"mod":"room"}
+            user.send(com)
 
     def sendTo(self,com,name):
         if name not in self.userlist:
@@ -52,6 +54,9 @@ class Room:
         
     def handlecommand(self,usr,com:dict):
         ...
+
+class SelRoom(Room):
+    PAGENAME="Pr-sel"
 
 class ChessRoom(Room):
     PAGENAME="Pr-chess"
@@ -97,7 +102,7 @@ class ChessRoom(Room):
         sizedata=data["dim"]
         teamcount=data["numteams"]
         board=data["boarddata"]
-        self.torder=data["turnorder"]
+        self.order=data["turnorder"]
         self.logic=Chess.Logic.Logic.genboard(teamcount,sizedata,board)
         self.turnorder=Chess.turngen(data["turnorder"])
         self.turn=next(self.turnorder)
@@ -135,8 +140,18 @@ class ChessRoom(Room):
 
     def handlecommand(self,usr,com:dict):
         match com:
-            case {"com":"getauth","action":"flowcontrol",**_u}:
-                c={"com":"setauth","action":"flowcontrol","mod":self.PAGENAME,"auth":self.userauths[usr.name]>=3}
+            case {"com":"togglegamerun",**_u}:
+                if self.userauths[usr.name]<3:
+                    c={"com":"setauth","action":"gametoggle","mod":self.PAGENAME,"auth":False}
+                    usr.send(c)
+                    return
+                if self.running:
+                    self.stopGame()
+                else:
+                    d=Chess.Stateloader.getBoard(self.boardname)
+                    self.startGame(d)
+            case {"com":"getauth","action":"gametoggle",**_u}:
+                c={"com":"setauth","action":"gametoggle","mod":self.PAGENAME,"auth":self.userauths[usr.name]>=3}
                 usr.send(c)
             case {"com":"getboard",**_u} if self.running:
                 r=self.exportBoard(self)
@@ -174,9 +189,9 @@ class ChessRoom(Room):
 
     def exportBoard(self,):
         if not self.running:
-            r=Chess.Stateloader.getBoard(self.boardname)
-            r["running"]=False
-            return 
+            d=Chess.Stateloader.getBoard(self.boardname)
+            d["running"]=self.running
+            return d
         d=self.logic.data
         dup=[]
         for x,strip in enumerate(d):
@@ -186,11 +201,11 @@ class ChessRoom(Room):
                     p=p.export()
                 dup[x].append(p)
         bd={
+            "numteams":len(self.logic.teams),
             "dim":[self.logic.WIDTH,self.logic.HEIGHT],
-            "turnorder":self.turnorder,
-            "numteams":2,
-            "boarddata":dup,
-            "running":True
+            "turnorder":self.order,
+            "running":self.running,
+            "boarddata":dup
         }
         return bd
     
@@ -208,6 +223,7 @@ class RoomServer:
     def __init__(self) -> None:
         self.roomindex:typing.Mapping[str,Room]={}
         self.userindex={}
+        self.mainRoom=SelRoom
 
     def createRoom(self, roomcls:Room, Id, **kwargs) -> Room:
         if not isinstance(roomcls,Room):
@@ -215,6 +231,8 @@ class RoomServer:
         if Id not in self.roomindex:
             r:Room=roomcls(Id, **kwargs)
             self.roomindex[Id]=r
+            if r.AuthSee():
+                self.mainRoom.broadcast({"com":"loadroom"})
             return r
         else:
             raise FileExistsError
@@ -223,8 +241,7 @@ class RoomServer:
         if roomId not in self.roomindex:
             raise FileNotFoundError
         if userobj.name in self.userindex:
-            if not self.userindex[userobj.name]:
-                raise FileExistsError
+            self.leaveRoom(userobj)
         room=self.roomindex[roomId]
         if room.AuthJoin(password):
             self.userindex[userobj.name]=roomId
@@ -232,9 +249,12 @@ class RoomServer:
         else:
             raise EnvironmentError
 
-    def leaveRoom(self,userobj,roomId):
+    def leaveRoom(self,userobj):
         if userobj.name not in self.userindex:
             return
+        if not self.userindex[userobj.name]:
+            return
+        roomId=self.userindex[userobj.name]
         self.userindex.pop(userobj.name)
         self.roomindex[roomId].leave(userobj)
     
@@ -265,21 +285,21 @@ class RoomServer:
                 try:
                     r:ChessRoom=self.createRoom(ChessRoom,roomname,password=roompass)
                     r.userauths[user.name]=3
-                    user.send({"com":"joinedroom","mod":"Proomsel","type":self.roomindex[roomname].pagename})
+                    user.send({"com":"joinedroom","mod":"rooms","type":self.roomindex[roomname].pagename})
                 except FileExistsError:
-                    user.clientError("RoomExists","Proomsel")
+                    user.clientError("RoomExists","Pr-sel")
             case {"com":"joinroom","roomname":roomname,"roompass":roompass,**_u}:
                 roomname=com["roomname"]
                 roompass=com["roompass"]
                 try:
                     self.joinRoom(user,roomname,roompass)
-                    user.send({"com":"joinedroom","mod":"Proomsel","type":self.roomindex[roomname].pagename})
+                    user.send({"com":"joinedroom","mod":"Pr-sel","type":self.roomindex[roomname].pagename})
                 except (EnvironmentError, FileNotFoundError, FileExistsError):
-                    user.clientError("AuthDeny","Proomsel")
+                    user.clientError("AuthDeny","Pr-sel")
             case {"com":"getrooms",**_u}:
                 visiblerooms=[
                 {"name":room.name,"password":bool(room.password)}
                 for room in self.roomindex.values() if room.AuthSee
                 ]
-                com={"com":"refreshrooms","roomarray":visiblerooms,"mod":"Proomsel"}
+                com={"com":"refreshrooms","roomarray":visiblerooms,"mod":"Pr-sel"}
                 user.send(com)
