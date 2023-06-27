@@ -103,7 +103,7 @@ class Server(socket.socket, rooms.RoomServer):
     def __init__(self, handler, family: socket.AddressFamily  = socket.AF_INET, type: socket.SocketKind = socket.SOCK_STREAM) -> None:
         super().__init__(family, type)
         self.HOST=socket.gethostbyname(socket.gethostname())
-        self.bind((self.HOST,4000))
+        self.bind((self.HOST,40000))
         self.PORT=self.getsockname()[1]
         print("Listening on ", self.getsockname())
         self.acceptingCon=True
@@ -151,6 +151,7 @@ class Server(socket.socket, rooms.RoomServer):
             return
         self.dbserver.decrementslots(addr)
         data={"com":"Login","user":com["name"],"mod":"UserAuth"}
+        user.send(data)
 
     def senduserdata(self,user,name,password):
         data=self.dbserver.getuser(name,password)
@@ -175,7 +176,7 @@ class Server(socket.socket, rooms.RoomServer):
         pass
 
     def kickClient(self,user):
-        user.c.close
+        user.c.close()
 class UserHandler:
     def __init__(self,c:socket.socket,addr,server:Server) -> None:
         self.user=None
