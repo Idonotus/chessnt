@@ -89,7 +89,7 @@ class CreationPopUp(tk.Toplevel):
 
 
 class RoomPage(ttk.Frame):
-    name="Proomsel"
+    name="Pr-sel"
     def __init__(self,master=None,main=None) -> None:
         self.main=main
         self.curpopup:tk.Toplevel=None

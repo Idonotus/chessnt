@@ -5,6 +5,8 @@ from Chess.Graphics import Gui
 import random
 from Chess.vectormath import vector
 
+def button(master,name,command):
+    return lambda: ttk.Button(master=master,text=name,command=command)
 class ChessPage(ttk.Frame):
     name="Pr-chess"
     def __init__(self,master=None,main=None) -> None:
@@ -22,7 +24,6 @@ class ChessPage(ttk.Frame):
         self.grid_columnconfigure(1,weight=1)
         self.grid_columnconfigure(0,weight=2)
         self.grid_rowconfigure(0,weight=1)
-
         self.g=Gui(self,signal=None,tile=85)
         self.g.grid(column=0,row=0,rowspan=2)
         nb=ttk.Notebook(self)
@@ -32,11 +33,18 @@ class ChessPage(ttk.Frame):
         nb.add(self.ulist,text="Users")
         bf=ttk.Frame(self)
         bf.grid(row=1,column=1,sticky="WE")
+
         bf.grid_columnconfigure(1,weight=1)
         bf.grid_columnconfigure(0,weight=1)
+        self.startbutton=button(bf,"Start",self.togglegame)
+        self.stopbutton=button(bf,"Stop",self.togglegame)
         ttk.Button(bf,text="Exit").grid(column=1,row=0,sticky="WE")
-        self.host_start=ttk.Button(bf,text="Start")
-        
+        self.game_toggle=self.startbutton()
+        self.sauth=False
+
+    def togglegame(self):
+        c={"com":"tooglegamerun","fowardtoroom":True,"mod":"rooms"}
+        self.s.send(c)
 
     def adduser(self,name,auth=False,team=None):
         a=UserData(self.ulist.getmaster(),name,auth=auth,team=team,command=self.teamSetEvent)
@@ -64,6 +72,11 @@ class ChessPage(ttk.Frame):
                    "com":"makemove","pos1":(int(a),int(b)),"pos2":(int(c),int(d))}
                 self.s.send(c)
 
+    def updatetoggle(self):
+        self.game_toggle.grid_forget()
+        if self.sauth:
+            self.game_toggle.grid(column=0,row=0,sticky="WE")
+
     def handleCommand(self,com):
         match com:
             case {"com":"userjoin","user":name,"auth":auth,**_u}:
@@ -75,15 +88,22 @@ class ChessPage(ttk.Frame):
             case {"com":"setauth","user":dict(users),"action":"setteam",**_u}:
                 for i in users.items():
                     self.ulist.setAuth(*i)
-            case {"com":"setauth","action":"start","auth":sauth}:
-                if sauth:
-                    self.host_start.grid(column=0,row=0,sticky="WE")
-                else:
-                    self.host_start.grid_forget()
+            case {"com":"setauth","action":"gametoggle","auth":sauth}:
+                self.sauth=sauth
+                self.updatetoggle()
             case {"com":"loadboard","data":d,**_u}:
                 self.g.destroy()
                 self.g=Gui.genboard(master=self,dim=d["dim"],boarddata=d["boarddata"])
                 self.g.grid(column=0,row=0,rowspan=2)
+                if "running" not in d:
+                    return
+                self.game_toggle.destroy()
+                if d["running"]:
+                    self.game_toggle=self.stopbutton()
+                else:
+                    self.game_toggle=self.startbutton()
+                self.updatetoggle()
+
             case {"com":"highlightmoves","tiles":r,"pos":pos,**_u} if not self.g.draggable:
                 pos=vector.fromtuple(pos)
                 r=[vector.fromtuple(p) for p in r]
