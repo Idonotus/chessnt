@@ -131,7 +131,7 @@ class Server(socket.socket, rooms.RoomServer):
         if not self.dbserver.userindb(com["name"],com["pass"]):
             user.clientError("l-UserNotFound","Plogin")
             return
-
+        self.senduserdata(user,com["name"],com["pass"])
         
         
     def userSignUp(self,user,com):
@@ -149,8 +149,7 @@ class Server(socket.socket, rooms.RoomServer):
             user.clientError("s-UserCreationError","Plogin")
             return
         self.dbserver.decrementslots(addr)
-        data={"com":"Login","user":com["name"],"mod":"UserAuth"}
-        user.send(data)
+        self.senduserdata(user,com["name"],com["pass"])
 
     def senduserdata(self,user,name,password):
         data=self.dbserver.getuser(name,password)

@@ -25,6 +25,7 @@ class mainApp:
     def __init__(self):
         self.win=tk.Tk()
         self.win.geometry("1300x700")
+        self.win.protocol("WM_DELETE_WINDOW",self.onclose)
         self.style=ttk.Style(self.win)
         self.style.layout("TEntry")
         self.style.theme_use("alt")
@@ -49,7 +50,11 @@ class mainApp:
         self.s=appNetClient(self)
         self.pagelock=threading.Lock()
         self.page(ConnectPage.name)
-        
+
+    def onclose(self):
+        self.s.disconnect()
+        self.win.destroy()
+
     def page(self,page):
         with self.pagelock:
             if self.curpage:
