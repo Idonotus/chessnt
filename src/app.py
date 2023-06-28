@@ -8,12 +8,16 @@ from tkinter import ttk
 import logging
 import threading
 logging.basicConfig(format="[%(levelname)s] %(message)s",level=logging.DEBUG)
-#453C67
-#191825
-#6D67E4
-#865DFF
-#E384FF
-#FFA3FD
+COLORS={
+    "baseback":"#1B2431",
+    "text":"#bba4ff",
+    "widgetback":"#343837",
+    "backhover":"#453C67",
+    "press":"#46C2CB",
+    "disable":"#6D5D6E",
+    "accent":"#46C2CB",
+    "fieldaccent":"#004802"
+}
 pagelookup={
     ConnectPage.name:ConnectPage,
     LoginPage.name:LoginPage,
@@ -29,22 +33,21 @@ class mainApp:
         self.style=ttk.Style(self.win)
         self.style.layout("TEntry")
         self.style.theme_use("alt")
-        self.style.configure(".",background="#191825",foreground="#865DFF")
+        self.style.configure(".",background=COLORS["baseback"],foreground="#865DFF")
         self.style.map("TButton",background=[
-                                    ("pressed","#46C2CB"),
-                                    ("disabled","#6D5D6E"),
-                                    ("active","#453C67"),
-                                    ("!active","#393646")],
+                                    ("pressed",COLORS["press"]),
+                                    ("disabled",COLORS["disable"]),
+                                    ("active",COLORS["backhover"]),
+                                    ("!active",COLORS["widgetback"])],
                                 relief=[("pressed","sunken"),
                                     ("!pressed","flat")])
         self.style.map("TEntry",fieldbackground=[
-                                    ("focus","#E384FF"),
-                                    ("active","#865DFF"),
-                                    ("!active","#6D67E4")
-                                ])
-
-        self.style.configure("TButton",focuscolor="#46C2CB")
-        self.style.configure("Error.TLabel",foreground="#46C2CB")
+                                    ("focus",COLORS["fieldaccent"]),
+                                    ("!active",COLORS["widgetback"])],
+                                )
+        self.style.configure("TEntry",foreground=COLORS["text"])
+        self.style.configure("TButton",focuscolor=COLORS["accent"])
+        self.style.configure("Error.TLabel",foreground=COLORS["accent"])
         self.backproc={}
         self.curpage=None
         self.s=appNetClient(self)
