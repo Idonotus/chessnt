@@ -1,6 +1,7 @@
 import Chess
 import threading
 import typing
+import logging
 from Chess.vectormath import vector
 class Room:
     PAGENAME="Pr-null"
@@ -8,18 +9,28 @@ class Room:
         self.name=name
         self.private=private
         self.password=password
+        self.userauths={}
         self.userlist={}
-
+    
+    def setAuth(self,user,value:int):
+        if not isinstance(value,int):
+            raise TypeError
+        self.userauths[user.name]=value
+    
     def join(self,userobj):
         if userobj.name in self.userlist:
             return
         self.userlist[userobj.name]=userobj
+        name=userobj.name
+        if name not in self.userauths:
+            self.userauths[name]=1
+        if userobj.auth!=1:
+            self.userauths[name]=userobj.auth
 
     def leave(self,userobj):
         if userobj.name not in self.userlist:
             raise FileExistsError
         self.userlist.pop(userobj.name)
-        
         com={"com":"RoomDisconnect","id":self.name,"mod":"room"}
     
     def inactive(self):
@@ -28,8 +39,8 @@ class Room:
     def broadcast(self,com,name=None):
         if "mod" not in com:
             com["mod"]=self.PAGENAME
-        for u in self.userlist:
-            if u.name==name:
+        for uname,u in self.userlist.items():
+            if uname==name:
                 continue
             u.send(com)
     
@@ -61,23 +72,18 @@ class SelRoom(Room):
 class ChessRoom(Room):
     PAGENAME="Pr-chess"
     def __init__(self, name: str, *, private: bool = False, password: str = None) -> None:
-        super().__init__(name, private, password)
+        super().__init__(name, private=private, password=password)
         self.userteams={}
         self.logic=None
         self.running=False
         self.boardname="classic"
-        self.userauths={}
         self.setting={
-            "USERSSELFTEAMCHANGE":False
+            "USERSELFTEAMCHANGE":False
         }
 
     def join(self, userobj):
         super().join(userobj)
         name=userobj.name
-        if name not in self.userauths:
-            self.userauths[name]=1
-        if userobj.auth!=1:
-            self.userauths[name]=userobj.auth
         for user in self.userlist.values():
             user.send({"com":"userjoin","mod":self.PAGENAME,"user":name,"auth":self.AuthSetTeam(user,name)})
     
@@ -89,12 +95,16 @@ class ChessRoom(Room):
     
     def AuthSetTeam(self,userobj,name):
         if self.running:
+            print("a")
             return False
-        if userobj.auth<1:
+        auth=self.userauths[userobj.name]
+        if auth<1:
             return False
-        if userobj.name!=name and userobj.auth==1:
+        if userobj.name!=name and auth==1:
+            print("c")
             return False
-        if userobj.auth==1 and not self.setting["USERSELFTEAMCHANGE"]:
+        if auth==1 and not self.setting["USERSELFTEAMCHANGE"]:
+            print("d")
             return False
         return True
 
@@ -138,6 +148,8 @@ class ChessRoom(Room):
         self.turn=next(self.turnorder)
         self.logic.teamturn=self.turn
 
+
+
     def handlecommand(self,usr,com:dict):
         match com:
             case {"com":"togglegamerun",**_u}:
@@ -153,8 +165,8 @@ class ChessRoom(Room):
             case {"com":"getauth","action":"gametoggle",**_u}:
                 c={"com":"setauth","action":"gametoggle","mod":self.PAGENAME,"auth":self.userauths[usr.name]>=3}
                 usr.send(c)
-            case {"com":"getboard",**_u} if self.running:
-                r=self.exportBoard(self)
+            case {"com":"getboard",**_u}:
+                r=self.exportBoard()
                 com={"com":"loadboard","data":r,"mod":self.PAGENAME}
                 usr.send(com)
             case {"com":"getusers",**_u}:
@@ -211,7 +223,7 @@ class ChessRoom(Room):
     
     def exportUserData(self,userobj):
         d=[]
-        for n in self.userlist.keys:
+        for n in self.userlist.keys():
             if n not in self.userteams:
                 d.append((n,self.AuthSetTeam(userobj,n),None))
             else:
@@ -223,10 +235,12 @@ class RoomServer:
     def __init__(self) -> None:
         self.roomindex:typing.Mapping[str,Room]={}
         self.userindex={}
-        self.mainRoom=SelRoom
+        self.mainRoom=SelRoom("mainroom")
 
     def createRoom(self, roomcls:Room, Id, **kwargs) -> Room:
-        if not isinstance(roomcls,Room):
+        if not isinstance(roomcls,type(Room)):
+            raise TypeError("Cannot be instance")
+        if not issubclass(roomcls,Room):
             raise TypeError("NOT A ROOM YOU ***********************")
         if Id not in self.roomindex:
             r:Room=roomcls(Id, **kwargs)
@@ -274,6 +288,9 @@ class RoomServer:
         self.roomindex[roomId].send(com,user.name)
 
     def usercommands(self,user,com):
+        if user.auth<0:
+            logging.warn(f"{user} attempted to access rooms")
+            return
         match com:
             case {"forwardtoroom":True,"com":_,**_u}:
                 if user.name not in self.userindex:
@@ -281,11 +298,12 @@ class RoomServer:
                 if not self.userindex[user.name]:
                     user.clientError("NotInRoom","main")
                 self.roomindex[self.userindex[user.name]].handlecommand(user,com)
-            case {"com":"createroom","roomname":roomname,"roompass":roompass,**_u}:
+            case {"com":"createroom","roomname":roomname,"roompass":roompass,"private":private,**_u}:
                 try:
-                    r:ChessRoom=self.createRoom(ChessRoom,roomname,password=roompass)
-                    r.userauths[user.name]=3
-                    user.send({"com":"joinedroom","mod":"rooms","type":self.roomindex[roomname].pagename})
+                    r:ChessRoom=self.createRoom(ChessRoom,roomname,password=roompass,private=private)
+                    self.joinRoom(user,roomname,roompass)
+                    user.send({"com":"joinroom","mod":"stateHandler","type":self.roomindex[roomname].PAGENAME})
+                    r.setAuth(user,3)
                 except FileExistsError:
                     user.clientError("RoomExists","Pr-sel")
             case {"com":"joinroom","roomname":roomname,"roompass":roompass,**_u}:
@@ -293,9 +311,12 @@ class RoomServer:
                 roompass=com["roompass"]
                 try:
                     self.joinRoom(user,roomname,roompass)
-                    user.send({"com":"joinedroom","mod":"Pr-sel","type":self.roomindex[roomname].pagename})
+                    user.send({"com":"joinroom","mod":"stateHandler","type":self.roomindex[roomname].PAGENAME})
                 except (EnvironmentError, FileNotFoundError, FileExistsError):
                     user.clientError("AuthDeny","Pr-sel")
+            case {"com":"leaveroom",**_u}:
+                self.leaveRoom(user)
+                user.send({"com":"joinroom","mod":"stateHandler","type":self.mainRoom.PAGENAME})
             case {"com":"getrooms",**_u}:
                 visiblerooms=[
                 {"name":room.name,"password":bool(room.password)}

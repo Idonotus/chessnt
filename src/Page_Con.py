@@ -43,7 +43,8 @@ class ConnectPage(ttk.Frame):
         if self.main:
             threading.Thread(
                 target=self.main.s.listen,
-                args=(self.main.handleCommand,)
+                args=(self.main.handleCommand,),
+                daemon=True
             ).start()
             self.main.page("Plogin")
 

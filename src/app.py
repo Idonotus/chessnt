@@ -1,3 +1,4 @@
+from typing import Any
 from Page_Login import LoginPage
 from Page_Con import ConnectPage
 from Page_Rooms import RoomPage
@@ -7,7 +8,8 @@ import tkinter as tk
 from tkinter import ttk
 import logging
 import threading
-logging.basicConfig(format="[%(levelname)s] %(message)s",level=logging.DEBUG)
+
+logging.basicConfig(format="[%(asctime)s][%(levelname)s] %(name)s: %(message)s",datefmt="%d-%m-%Y %H:%M:%S",level=logging.DEBUG)
 COLORS={
     "baseback":"#1B2431",
     "text":"#bba4ff",
@@ -25,11 +27,52 @@ pagelookup={
     ChessPage.name:ChessPage
 }
 
+class stateHandler:
+    def __init__(self,main) -> None:
+        self.main=main
+        self.name=None
+
+    def login(self,name):
+        self.main.page(RoomPage.name)
+        self.name=name
+    
+    def disconnect(self):
+        self.main.page(ConnectPage.name)
+        self.name=None
+
+    def logout(self):
+        self.main.page(LoginPage.name)
+        self.name=None
+    
+    def connect(self):
+        self.main.page(LoginPage.name)
+    
+    def loadroom(self,roomname):
+        try:
+            self.main.page(roomname)
+        except FileNotFoundError:
+            logging.error(f"{roomname} not a valid page")
+            raise
+
+    def handleCommand(self,com):
+        match com:
+            case {"com":"login","user":name,**_u}:
+                self.login(name)
+            case {"com":"logout",**_u}:
+                self.logout()
+            case {"com":"joinroom","type":roomtype,**_u}:
+                try:
+                    self.loadroom(roomtype)
+                except:
+                    com={"com":"leaveroom","mod":"rooms"}
+                    logging.exception()
+
 class mainApp:
     def __init__(self):
         self.win=tk.Tk()
         self.win.geometry("1300x700")
         self.win.protocol("WM_DELETE_WINDOW",self.onclose)
+
         self.style=ttk.Style(self.win)
         self.style.layout("TEntry")
         self.style.theme_use("alt")
@@ -48,14 +91,18 @@ class mainApp:
         self.style.configure("TEntry",foreground=COLORS["text"])
         self.style.configure("TButton",focuscolor=COLORS["accent"])
         self.style.configure("Error.TLabel",foreground=COLORS["accent"])
+
+
         self.backproc={}
         self.curpage=None
         self.s=appNetClient(self)
         self.pagelock=threading.Lock()
         self.page(ConnectPage.name)
+        self.stateHandler=stateHandler(self)
+        self.loadBackProc("stateHandler",self.stateHandler)
 
     def onclose(self):
-        self.s.disconnect()
+        self.s.close()
         self.win.destroy()
 
     def page(self,page):
@@ -75,7 +122,7 @@ class mainApp:
             self.backproc[command["mod"]].handleCommand(command)
         elif command["mod"] == self.curpage.name:
             self.curpage.handleCommand(command)
-    def createBackProc(self,name,obj):
+    def loadBackProc(self,name,obj):
         self.backproc[name]=obj
 
 if __name__=="__main__":

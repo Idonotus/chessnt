@@ -43,7 +43,7 @@ class netClient:
     
     def handleSuddenDisc(self):
         self.online=False
-        logging.info("Lost connection: attemping reconnect")
+        logging.error("Lost connection: attemping reconnect")
         self.socket.close()
         self.socket=socket.socket()
         if not self.connectdata:
@@ -136,4 +136,7 @@ class appNetClient(netClient):
     def disconnect(self):
         if self.main:
             self.main.page("Pconnect")
+        return super().disconnect()
+
+    def close(self):
         return super().disconnect()

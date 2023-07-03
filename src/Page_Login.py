@@ -9,14 +9,6 @@ ERRORDEF = {
     "NameLengthError":"Username or password too long or short",
     "UserNotFound":"User not found"
 }
-class UserAuth:
-    def __init__(self,main) -> None:
-        self.main=main
-    def handleCommand(self,com):
-        if com["com"]=="Login":
-            self.main.page("Proomsel")
-        if com["com"]=="Logout":
-            self.main.page("Plogin")
 
 class LoginPage(ttk.Frame):
     name="Plogin"
@@ -26,7 +18,6 @@ class LoginPage(ttk.Frame):
             master.title("PPPPPPPPPPPPP")
         self.main=main
         if main:
-            main.createBackProc("UserAuth",UserAuth(main))
             self.s=main.s
         else:
             self.s=None

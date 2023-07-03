@@ -8,7 +8,7 @@ import os
 import queue
 import dataclasses
 import rooms
-logging.basicConfig(format="[%(levelname)s] %(message)s",level=logging.DEBUG)
+logging.basicConfig(format="[%(asctime)s][%(levelname)s] %(name)s: %(message)s",datefmt="%d-%m-%Y %H:%M:%S",level=logging.DEBUG)
 database=sqlite3.connect("server.db",check_same_thread=False)
 
 dataaccess=threading.Lock()
@@ -96,16 +96,20 @@ class ExeQueuetioner:
             finally:
                 self.exequeue.task_done()
 
-    def addqueue(self,thread:threading.Thread,priority=1):
+    def addthread(self,thread:threading.Thread,priority=1):
         self.exequeue.put(QueuedThread(priority,thread))
-        return thread.join() 
+    
+    def additem(self,item):
+        self.exequeue.put(item)
+
+
 class Server(socket.socket, rooms.RoomServer):
     def __init__(self, handler, family: socket.AddressFamily  = socket.AF_INET, type: socket.SocketKind = socket.SOCK_STREAM) -> None:
         super().__init__(family, type)
         self.HOST=socket.gethostbyname(socket.gethostname())
-        self.bind((self.HOST,40000))
+        self.bind((self.HOST,0))
         self.PORT=self.getsockname()[1]
-        print("Listening on ", self.getsockname())
+        logging.info(f"Listening on {self.HOST}:{self.PORT}")
         self.acceptingCon=True
         self.handler=handler
         self.roomindex={}
@@ -156,7 +160,7 @@ class Server(socket.socket, rooms.RoomServer):
         data=self.dbserver.getuser(name,password)
         user.auth=data[1]
         user.name=data[0]
-        data={"com":"Login","user":name,"mod":"UserAuth"}
+        data={"com":"login","user":name,"mod":"stateHandler"}
         user.send(data)
 
     def validatecredentials(self,com):
@@ -178,7 +182,7 @@ class Server(socket.socket, rooms.RoomServer):
         user.c.close()
 class UserHandler:
     def __init__(self,c:socket.socket,addr,server:Server) -> None:
-        self.user=None
+        self.name=None
         self.auth=-1
         self.c=c
         self.addr=addr
@@ -202,10 +206,13 @@ class UserHandler:
                 s.leaveClient(self)
                 break
             coms=data.split("\0")
-            print(data)
+            logging.info(f"{self.addr}:{data}")
             for com in coms[:-1]:
-                com=json.loads(com)
-                self.redirectCommand(com)
+                try:
+                    com=json.loads(com)
+                    self.redirectCommand(com)
+                except json.decoder.JSONDecodeError:
+                    logging.error(f"Failed to decode : {com}")
             data=coms[-1:][0]
     
     def send(self,data):
@@ -218,28 +225,31 @@ class UserHandler:
         c=self.c
         s=self.server
         self.q=self.server.exe
-        if not self.user and com["mod"]!="userauth":
-            self.clientError(c,"NotAuth",reason="NoLogin")
-
+        if not self.name and com["mod"]!="userauth":
+            self.clientError("NotAuth",reason="NoLogin")
+        exethread=None
         if com["mod"]=="userauth":
             if com["com"] in ["createUser","loginUser"]:
-                if self.user:
+                if self.name:
                     self.clientError(c,"NotAuth",reason="LoggedIn")
                 if com["com"]=="createUser":
-                    self.q.addqueue(s.userSignUp,self,com)
+                    exethread=threading.Thread(target=s.userSignUp,args=(self,com))
                 if com["com"]=="loginUser":
-                    self.q.addqueue(s.login,self,com)
+                    exethread=threading.Thread(target=s.login,args=(self,com))
         if com["mod"]=="rooms":
-            self.q.addqueue(s.roomserver.usercommands,self,com)
+            exethread=threading.Thread(target=s.roomserver.usercommands,args=(self,com))
+        if isinstance(exethread,threading.Thread):
+            self.q.addthread(exethread)
     
     def clientError(self,errortype,mod="main", queue=False,**kwargs):
         data={"com":"raiseError",
                 "mod":mod,
                 "type":errortype}
         data.update(kwargs)
-        if queue:
-            data["cause"]=self.q.fetchlast()
-        data=json.dumps(data)+"\0"
+        try:
+            data=json.dumps(data)+"\0"
+        except:
+            logging.exception(f"{data} is not json")
         self.c.sendall(data.encode())
 
 if __name__=="__main__":

@@ -15,11 +15,12 @@ class ChessPage(ttk.Frame):
             self.s=main.s
             self.s.send({"mod":"rooms","forwardtoroom":True,"com":"getusers"})
             self.s.send({"mod":"rooms","forwardtoroom":True,"com":"getboard"})
-            self.s.send({"com":"getauth","action":"flowcontrol","mod":"rooms","forwardtoroom":True,})
+            self.s.send({"com":"getauth","action":"gametoggle","mod":"rooms","forwardtoroom":True,})
         else:
             self.s=None
 
         super().__init__(master=master,height=700,width=1300)
+        self.pack(fill="both",expand=True)
         self.grid_propagate(0)
         self.grid_columnconfigure(1,weight=1)
         self.grid_columnconfigure(0,weight=2)
@@ -93,7 +94,7 @@ class ChessPage(ttk.Frame):
                 self.updatetoggle()
             case {"com":"loadboard","data":d,**_u}:
                 self.g.destroy()
-                self.g=Gui.genboard(master=self,dim=d["dim"],boarddata=d["boarddata"])
+                self.g=Gui.genboard(master=self,dim=d["dim"],boarddata=d["boarddata"],signal=self.guisig)
                 self.g.grid(column=0,row=0,rowspan=2)
                 if "running" not in d:
                     return

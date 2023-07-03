@@ -110,13 +110,13 @@ class RoomPage(ttk.Frame):
         self.grid_columnconfigure(0,weight=1)
         self.grid_rowconfigure(0,weight=1)
         self.roomlist=tk.Listbox(roomselcon,selectmode=tk.SINGLE)
-        self.roomlist.grid(row=0,column=0,columnspan=3,sticky="NEWS")
+        self.roomlist.grid(row=0,column=0,columnspan=4,sticky="NEWS")
         self.rooms={}
         roomselcon.grid_columnconfigure(0,weight=1)
         roomselcon.grid_columnconfigure(1,weight=1)
         roomselcon.grid_columnconfigure(2,weight=1)
         roomselcon.grid_rowconfigure(0,weight=1)
-        ttk.Button(roomselcon,text="Create room",command=lambda: self.popup(CreationPopUp))
+        ttk.Button(roomselcon,text="Create room",command=lambda: self.popup(CreationPopUp)).grid(padx=2,row=1,column=0,sticky="WE")
         ttk.Button(roomselcon,text="Join room",command=self.joinselected).grid(padx=2,row=1,column=1,sticky="WE")
         ttk.Button(roomselcon,command=lambda:self.popup(DJPopUp),text="Join directly").grid(row=1,column=2,sticky="WE",padx=2)
         ttk.Button(roomselcon,text="Refresh",command=self.refresh).grid(padx=2,row=1,column=3,sticky="WE")
@@ -189,8 +189,7 @@ class RoomPage(ttk.Frame):
         self.roomlist.delete(index)
     
     def handleCommand(self,com):
-        if com["com"]=="joinedroom":
-            self.main.page(com["type"])
+        ...
             
 
 def roomcredcheck(roomname,roompass="",private=False):
