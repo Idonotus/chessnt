@@ -197,7 +197,7 @@ class ChessRoom(Room):
         if not self.AuthSetTeam(usr,name):
             return
         self.userteams[name]=team
-        self.broadcast({"com":"teamChanged","name":name,"team":team,"mod":self.PAGENAME})
+        self.broadcast({"com":"teamchanged","name":name,"team":team,"mod":self.PAGENAME})
 
     def exportBoard(self,):
         if not self.running:

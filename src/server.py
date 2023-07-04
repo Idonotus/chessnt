@@ -176,7 +176,10 @@ class Server(socket.socket, rooms.RoomServer):
         
     
     def leaveClient(self,user):
-        pass
+        logging.info(f"{user.addr} left")
+        self.roomserver.leaveRoom(user)
+        del user
+
 
     def kickClient(self,user):
         user.c.close()

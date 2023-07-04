@@ -80,6 +80,8 @@ class ChessPage(ttk.Frame):
 
     def handleCommand(self,com):
         match com:
+            case {"com":"teamchanged","name":name,"team":team,**_u}:
+                self.ulist.setTeam(name,team)
             case {"com":"userjoin","user":name,"auth":auth,**_u}:
                 self.adduser(name,auth)
             case {"com":"userleave","user":name,**_u}:

@@ -44,6 +44,7 @@ class UserData(ttk.Frame):
         if team is None:
             team="None"
         if team not in self.possibleteams:
+            print(self.possibleteams,team,type(team))
             raise KeyError
         self.curteam=team
         if isinstance(self.team,ttk.Combobox):
@@ -62,7 +63,12 @@ class UserData(ttk.Frame):
     
     def _teamchanged(self,e):
         if self.command:
-            self.command(self.getTeam(),self)
+            t=self.getTeam()
+            try:
+                t=int(t)
+            except ValueError:
+                ...
+            self.command(t,self)
             self.setTeam(self.curteam)
     
     def setAuth(self,auth:bool):
