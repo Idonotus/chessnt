@@ -222,7 +222,10 @@ class UserHandler:
         if isinstance(data,dict):
             data=json.dumps(data)
         data+="\0"
-        self.c.sendall(data.encode())
+        try:
+            self.c.sendall(data.encode())
+        except socket.error:
+            self.server.leaveClient(self)
     
     def redirectCommand(self,com):
         c=self.c

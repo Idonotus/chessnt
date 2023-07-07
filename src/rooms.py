@@ -31,10 +31,13 @@ class Room:
         if userobj.name not in self.userlist:
             raise FileExistsError
         self.userlist.pop(userobj.name)
-        com={"com":"RoomDisconnect","id":self.name,"mod":"room"}
+        com={"com":"leftroom","mod":"stateHandler"}
+        userobj.send(com)
+        com={"com":"userleave","name":userobj.name}
+        self.broadcast(com)
     
     def inactive(self):
-        return len(self.userlist)>=1
+        return len(self.userlist)<=0
 
     def broadcast(self,com,name=None):
         if "mod" not in com:
@@ -45,9 +48,7 @@ class Room:
             u.send(com)
     
     def close(self):
-        for user in self.userlist.items():
-            com={"com":"RoomDisconnect","id":self.name,"mod":"room"}
-            user.send(com)
+        self.broadcast({"com":"leftroom","mod":"stateHandler"})
 
     def sendTo(self,com,name):
         if name not in self.userlist:
@@ -65,9 +66,18 @@ class Room:
         
     def handlecommand(self,usr,com:dict):
         ...
+    
+    def canPersist(self):
+        if not self.inactive():
+            return True
+        if hasattr(self,"persist"):
+            if type(self.persist)==bool:
+                return self.persist
+        return False
 
 class SelRoom(Room):
     PAGENAME="Pr-sel"
+    persist=True
 
 class ChessRoom(Room):
     PAGENAME="Pr-chess"
@@ -91,20 +101,19 @@ class ChessRoom(Room):
         super().leave(userobj)
         if userobj.name in self.userteams:
             self.userteams.pop(userobj.name)
-        self.broadcast({"com":"userleave","mod":self.PAGENAME,"user":userobj.name})
-    
-    def AuthSetTeam(self,userobj,name):
+
+    def canSetTeam(self,userobj,name):
         if self.running:
-            print("a")
             return False
+        return self.AuthSetTeam(userobj,name)
+
+    def AuthSetTeam(self,userobj,name):
         auth=self.userauths[userobj.name]
         if auth<1:
             return False
         if userobj.name!=name and auth==1:
-            print("c")
             return False
         if auth==1 and not self.setting["USERSELFTEAMCHANGE"]:
-            print("d")
             return False
         return True
 
@@ -118,14 +127,23 @@ class ChessRoom(Room):
         self.turn=next(self.turnorder)
         self.logic.teamturn=self.turn
         self.running=True
-        c={"com":"loadboard","data":self.exportBoard(),"mod":self.PAGENAME}
+        c={"com":"loadboard","data":self.exportBoard()}
         self.broadcast(c)
+        self.logic.updateallmoves()
+    
+    def stopGame(self):
+        self.running=False
+        del self.turnorder
+        del self.logic
+        del self.order
+        com={"com":"loadboard","data":self.exportBoard()}
+        self.broadcast(com)
     
     def AuthMove(self, userobj, pos):
         p=self.logic.getpiece(pos=pos)
         if userobj.name not in self.userteams:
             return False
-        if p.team not in self.userteams[userobj.name]:
+        if p.team != self.userteams[userobj.name]:
             return False
         return True
 
@@ -134,20 +152,21 @@ class ChessRoom(Room):
             return
         if not self.logic.ispiece(pos=pos1):
             return
-        if not self.authmove(userobj,pos1):
+        if not self.AuthMove(userobj,pos1):
             return
         if not self.logic.canmove(pos1,pos2):
             return
-        r=self.logic.movepiece(pos1,pos2)
+        r=self.logic.reqmovepiece(pos1,pos2)
         if not r:
             return
-        self.broadcast({"com":"loadmove","mod":self.PAGENAME,"dif":r})
+        self.broadcast({"com":"loadmoves","dif":r})
         self.endturn()
+        return True
 
     def endturn(self):
         self.turn=next(self.turnorder)
         self.logic.teamturn=self.turn
-
+        self.logic.updateallmoves()
 
 
     def handlecommand(self,usr,com:dict):
@@ -178,11 +197,12 @@ class ChessRoom(Room):
             case {"com":"makemove","pos1":pos1,"pos2":pos2,**_u} if self.running:
                 pos1=vector.fromtuple(pos1)
                 pos2=vector.fromtuple(pos2)
-                self.makeMove(usr,pos1,pos2)
+                if not self.makeMove(usr,pos1,pos2):
+                    usr.send({"com":"returnpiece","pos":pos1.intcoords(),"mod":self.PAGENAME})
             case {"com":"getmoves","piecepos":pos,**_u} if self.running:
-                pos=vector.fromtuple(pos)
-                r=self.getpossiblemoves(pos)
-                c={"com":"highlightmoves","mod":self.PAGENAME,"tiles":r,"pos":pos}
+                vpos=vector.fromtuple(pos)
+                r=self.getpossiblemoves(vpos)
+                c={"com":"displaymoves","mod":self.PAGENAME,"moves":r,"pos":pos}
                 usr.send(c)
 
     def getpossiblemoves(self,pos):
@@ -194,7 +214,7 @@ class ChessRoom(Room):
         return [m.intcoords() for m in p.getallmoves()]
 
     def setTeam(self,usr,name,team):
-        if not self.AuthSetTeam(usr,name):
+        if not self.canSetTeam(usr,name):
             return
         self.userteams[name]=team
         self.broadcast({"com":"teamchanged","name":name,"team":team,"mod":self.PAGENAME})
@@ -209,7 +229,7 @@ class ChessRoom(Room):
         for x,strip in enumerate(d):
             dup.append([])
             for y,p in enumerate(strip):
-                if isinstance(p,Chess.logic.Piece):
+                if isinstance(p,Chess.Logic.Piece):
                     p=p.export()
                 dup[x].append(p)
         bd={
@@ -236,17 +256,18 @@ class RoomServer:
         self.roomindex:typing.Mapping[str,Room]={}
         self.userindex={}
         self.mainRoom=SelRoom("mainroom")
+        self.roomindex["menu"]=self.mainRoom
 
-    def createRoom(self, roomcls:Room, Id, **kwargs) -> Room:
+    def createRoom(self, roomcls, Id, **kwargs) -> Room:
         if not isinstance(roomcls,type(Room)):
             raise TypeError("Cannot be instance")
         if not issubclass(roomcls,Room):
-            raise TypeError("NOT A ROOM YOU ***********************")
+            raise TypeError("Room classes must inherit room")
         if Id not in self.roomindex:
             r:Room=roomcls(Id, **kwargs)
             self.roomindex[Id]=r
             if r.AuthSee():
-                self.mainRoom.broadcast({"com":"loadroom"})
+                self.mainRoom.broadcast({"com":"showroom","name":Id,"password":bool(r.password),"private":r.private})
             return r
         else:
             raise FileExistsError
@@ -263,14 +284,25 @@ class RoomServer:
         else:
             raise EnvironmentError
 
-    def leaveRoom(self,userobj):
+
+    
+    def inRoom(self,userobj):
         if userobj.name not in self.userindex:
-            return
+            return False
         if not self.userindex[userobj.name]:
+            return False
+        return True
+
+    def leaveRoom(self,userobj):
+        if not self.inRoom(userobj):
             return
         roomId=self.userindex[userobj.name]
         self.userindex.pop(userobj.name)
+        if roomId not in self.roomindex:
+            return
         self.roomindex[roomId].leave(userobj)
+        if not self.roomindex[roomId].canPersist():
+            self.destroy(roomId)
     
     def broacast(self,roomId,com,user=None):
         if not (isinstance(user,(str)) or not user):
@@ -280,8 +312,16 @@ class RoomServer:
         self.roomindex[roomId].broadcast(com,user)
     
     def destroy(self,roomId):
-        pass
-    
+        room=self.roomindex[roomId]
+        room.close()
+        for user in list(room.userlist.values()):
+            self.leaveRoom(user)
+        if room.AuthSee():
+            com={"com":"hideroom","name":roomId,"mod":self.mainRoom.PAGENAME}
+            self.mainRoom.broadcast(com)
+        self.roomindex.pop(roomId)
+        del room
+
     def send(self,roomId,com,user):
         if roomId not in self.roomindex:
             return
@@ -289,23 +329,27 @@ class RoomServer:
 
     def usercommands(self,user,com):
         if user.auth<0:
-            logging.warn(f"{user} attempted to access rooms")
+            logging.warn(f"Unauthorised {user} attempted to access rooms")
             return
         match com:
             case {"forwardtoroom":True,"com":_,**_u}:
                 if user.name not in self.userindex:
-                    user.clientError("NotInRoom","main")
+                    user.clientError("NotInRoom","stateHandler")
                 if not self.userindex[user.name]:
-                    user.clientError("NotInRoom","main")
+                    user.clientError("NotInRoom","stateHandler")
                 self.roomindex[self.userindex[user.name]].handlecommand(user,com)
+            case {"com":"listenroomevent",**_u}:
+                if self.inRoom(user):
+                    return
+                self.joinRoom(user,"menu")
             case {"com":"createroom","roomname":roomname,"roompass":roompass,"private":private,**_u}:
                 try:
                     r:ChessRoom=self.createRoom(ChessRoom,roomname,password=roompass,private=private)
+                    r.setAuth(user,3)
                     self.joinRoom(user,roomname,roompass)
                     user.send({"com":"joinroom","mod":"stateHandler","type":self.roomindex[roomname].PAGENAME})
-                    r.setAuth(user,3)
                 except FileExistsError:
-                    user.clientError("RoomExists","Pr-sel")
+                    user.clientError("RoomExists",self.mainRoom.PAGENAME)
             case {"com":"joinroom","roomname":roomname,"roompass":roompass,**_u}:
                 roomname=com["roomname"]
                 roompass=com["roompass"]
@@ -313,14 +357,16 @@ class RoomServer:
                     self.joinRoom(user,roomname,roompass)
                     user.send({"com":"joinroom","mod":"stateHandler","type":self.roomindex[roomname].PAGENAME})
                 except (EnvironmentError, FileNotFoundError, FileExistsError):
-                    user.clientError("AuthDeny","Pr-sel")
+                    user.clientError("AuthDeny",self.mainRoom.PAGENAME)
             case {"com":"leaveroom",**_u}:
                 self.leaveRoom(user)
-                user.send({"com":"joinroom","mod":"stateHandler","type":self.mainRoom.PAGENAME})
+                self.joinRoom(user,"menu")
             case {"com":"getrooms",**_u}:
+                if not self.inRoom(user):
+                    self.joinRoom(user,"menu")
                 visiblerooms=[
                 {"name":room.name,"password":bool(room.password)}
-                for room in self.roomindex.values() if room.AuthSee
+                for room in self.roomindex.values() if room.AuthSee()
                 ]
-                com={"com":"refreshrooms","roomarray":visiblerooms,"mod":"Pr-sel"}
+                com={"com":"refreshrooms","roomarray":visiblerooms,"mod":self.mainRoom.PAGENAME}
                 user.send(com)

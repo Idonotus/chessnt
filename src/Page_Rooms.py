@@ -16,11 +16,12 @@ SUCCESS={
     "JoinSuccess"
 }
 
-class GetPassPopUp(tk.Toplevel):
-    def __init__(self,master,roomname):
+class GetPassPopUp(tk.Frame):
+    def __init__(self,master,page,roomname):
         super().__init__(master)
         self.roomname=roomname
         self.awaiting=False
+        self.page=page
         r=ttk.Frame(self)
         r.pack(expand=True,fill="both")
         ttk.Label(r,text="Password required").grid(row=0,column=0)
@@ -29,16 +30,18 @@ class GetPassPopUp(tk.Toplevel):
         self.grid_columnconfigure(0,weight=1)
         self.b=ttk.Button(r,text="Confirm",command=self.collectEntries)
         self.b.grid(row=2)
+        self.pack()
 
     def collectEntries(self):
         if self.password.isvalid():
             password=self.password.get()
-            self.master.reqjoinroom(self.roomname,password)
-            self.destroy()
+            self.page.reqjoinroom(self.roomname,password)
+            self.master.destroy()
 
-class DJPopUp(tk.Toplevel):
-    def __init__(self,master):
+class DJPopUp(tk.Frame):
+    def __init__(self,master,page):
         self.master=master
+        self.page=page
         super().__init__(master)
         self.grid_columnconfigure(0,weight=1)
         ttk.Label(self,text="Room name").grid(row=0)
@@ -49,17 +52,17 @@ class DJPopUp(tk.Toplevel):
         self.password.grid(row=3)
         self.b=ttk.Button(self,text="Join Room",command=self.collectEntries)
         self.b.grid(row=4)
-        self.awaiting=False
-    
+        self.pack()    
     def collectEntries(self):
         if self.name.isvalid() and self.password.isvalid():
             roomname=self.name.get()
             roompass=self.password.get()
-            self.master.reqjoinroom(roomname,roompass)
-            self.destroy()
-class CreationPopUp(tk.Toplevel):
-    def __init__(self, master) -> None:
+            self.page.reqjoinroom(roomname,roompass)
+            self.master.destroy()
+class CreationPopUp(ttk.Frame):
+    def __init__(self, master, page) -> None:
         self.master=master
+        self.page=page
         super().__init__(master)
         self.grid_columnconfigure(0,weight=1)
         ttk.Label(self,text="Room name").grid(row=0)
@@ -77,15 +80,15 @@ class CreationPopUp(tk.Toplevel):
         ttk.Label(cf,text="Private").grid(column=1,row=0)
         self.b=ttk.Button(self,text="Create",command=self.collectEntries)
         self.b.grid(row=5)
-        self.awaiting=False
+        self.pack()
     
     def collectEntries(self):
         if self.name.isvalid() and self.password.isvalid():
             priv=self.private.get()
             roomname=self.name.get()
             roompass=self.password.get()
-            self.master.reqcreateroom(roomname,roompass,priv)
-            self.destroy()
+            self.page.reqcreateroom(roomname,roompass,priv)
+            self.master.destroy()
 
 
 class RoomPage(ttk.Frame):
@@ -95,6 +98,10 @@ class RoomPage(ttk.Frame):
         self.curpopup:tk.Toplevel=None
         if self.main:
             self.s=main.s
+            self.s.send({
+            "com":"getrooms",
+            "mod":"rooms"
+        })
         else:
             self.s=None
         if not master:
@@ -111,7 +118,8 @@ class RoomPage(ttk.Frame):
         self.grid_rowconfigure(0,weight=1)
         self.roomlist=tk.Listbox(roomselcon,selectmode=tk.SINGLE)
         self.roomlist.grid(row=0,column=0,columnspan=4,sticky="NEWS")
-        self.rooms={}
+        self.roomdata={}
+        self.rooms=[]
         roomselcon.grid_columnconfigure(0,weight=1)
         roomselcon.grid_columnconfigure(1,weight=1)
         roomselcon.grid_columnconfigure(2,weight=1)
@@ -130,13 +138,14 @@ class RoomPage(ttk.Frame):
         }
         if self.s:
             self.s.send(com)
+
     def joinselected(self):
         s=self.roomlist.curselection()
         if len(s)==0:
             return
         n=self.roomlist.get(s[0])
         if n in self.rooms:
-            d=self.rooms[n]
+            d=self.roomdata[n]
             if d["password"]:
                 self.popup(GetPassPopUp,roomname=n)
             else:
@@ -148,7 +157,10 @@ class RoomPage(ttk.Frame):
     def popup(self,popupmenu,**kwargs):
         if self.curpopup:
             self.curpopup.destroy()
-        self.curpopup=popupmenu(self,**kwargs)
+        self.curpopup=tk.Toplevel(self)
+        popupmenu(self.curpopup,self,**kwargs)
+        
+        
 
     def reqjoinroom(self,roomname,roompass=""):
         com={
@@ -173,24 +185,41 @@ class RoomPage(ttk.Frame):
     
     def loadRoomlist(self,roomlist):
         self.roomlist.delete(0,tk.END)
-        self.rooms={}
+        self.rooms=[]
+        self.roomdata={}
         for item in roomlist:
             self.addRoom(item)
     
     def addRoom(self,roomdata):
-        if roomdata["private"]:
-            return
+        if "private" in roomdata:
+            if roomdata["private"]:
+                return
         self.roomlist.insert(tk.END,roomdata["name"])
-        self.rooms[roomdata["name"]]=roomdata
+        self.roomdata[roomdata["name"]]=roomdata
+        self.rooms.append(roomdata["name"])
         if roomdata["password"]:
             self.roomlist.itemconfig(tk.END,bg="#F97B22",selectbackground="#FC4F00")
     
-    def removeRoom(self,index=tk.END):
-        self.roomlist.delete(index)
-    
+    def removeRoom(self,name):
+        try:
+            i=self.rooms.index(name)
+        except:
+            return
+        self.rooms.pop(i)
+        self.roomdata.pop(name)
+        self.roomlist.delete(i)
+
     def handleCommand(self,com):
-        ...
-            
+        match com:
+            case {"com":"refreshrooms","roomarray":rooms,**_u}:
+                self.loadRoomlist(rooms)
+            case {"com":"showroom","name":name,"password":ispassprot,**_u}:
+                ispriv=False
+                if "private" in _u:
+                    ispriv=_u["private"]
+                self.addRoom({"name":name,"password":ispassprot,"private":ispriv})
+            case {"com":"hideroom","name":name}:
+                self.removeRoom(name)
 
 def roomcredcheck(roomname,roompass="",private=False):
     if not 3<=len(roomname)<=20:

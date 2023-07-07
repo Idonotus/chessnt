@@ -7,8 +7,8 @@ class Piece:
         self.inactive=False
         self.logic=logic
         self.position=vector(x,y)
-        self.availmoves=[]
-        self.availtakes=[]
+        self.availmoves:list[vector]=[]
+        self.availtakes:list[vector]=[]
         self.team=team
     
     def getallmoves(self):

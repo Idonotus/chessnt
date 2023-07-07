@@ -32,11 +32,11 @@ class Sprite:
 
     def returnpiece(self):
         pos=self.position
-        self.gui.placepiece(self.image,pos.x,pos.y,self)
+        self.gui.placepiece(self,pos.x,pos.y)
 
     def movepiece(self,x,y):
         pos=self.position
-        self.gui.placepiece(self.image,x,y,self)
+        self.gui.placepiece(self,x,y)
         self.gui.data[x][y]=self
         self.position=vector(x,y)
         self.gui.data[int(pos.x)][int(pos.y)]=None

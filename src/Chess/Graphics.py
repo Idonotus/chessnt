@@ -27,6 +27,7 @@ class Gui(tk.Canvas):
         self.teamcolors=["#FF0000","#0000FF"]
         self.tiles=[]
         self.game=None
+        self.automaticreturn=True
         self.ROTATION=0
         self.draggable=None
         for x in range(width):
@@ -144,13 +145,13 @@ class Gui(tk.Canvas):
         p=tk.Toplevel()
         tk.Label(p,text=f"Team {team+1} lost").pack()
 
-    def placepiece(self,image,x,y,Piece):
+    def placepiece(self,Piece,x,y):
         x,y=self.localrotate(self.ROTATION,x,y)
         xpos=x*self.TILESIZE
         ypos=y*self.TILESIZE
         
-        xpos-=self.coords(image)[0]
-        ypos-=self.coords(image)[1]
+        xpos-=self.coords(Piece.image)[0]
+        ypos-=self.coords(Piece.image)[1]
         if hasattr(Piece,"offset"):
             xpos+=Piece.offset[0]
             ypos+=Piece.offset[1]
@@ -172,25 +173,32 @@ class Gui(tk.Canvas):
         y=int(y)
         x=int(x)
         x,y=self.localrotate(self.ROTATION,x,y,True)
-        self.draggable.returnpiece()
+        if self.automaticreturn:
+            self.draggable.returnpiece()
         self.draggable=None         
         self.removehighlight(highlight="move")
         pos2=vector(x,y)
         if self.signal:
             self.signal("drop_piece",widget.position,pos2)
-        
+
+    def getpiece(self,x,y):
+        if not(0<=x<self.WIDTH and 0<=y<self.HEIGHT):
+            return None
+        try:
+            return self.data[x][y]
+        except:
+            return None
+
     def drag_start(self,event):
         tilex=event.x//self.TILESIZE
         tiley=event.y//self.TILESIZE
         tilex,tiley=self.localrotate(self.ROTATION,tilex,tiley,True)
-        if 0<=tilex<self.WIDTH and 0<=tiley<self.HEIGHT:
-            if not self.data[tilex][tiley]:
-                return
-            self.draggable=self.data[tilex][tiley]
-            
-            self.tag_raise(self.draggable.image)
-            if self.signal:
-                self.signal("pickup_piece",tilex,tiley)
+        self.draggable=self.getpiece(tilex,tiley)
+        if not self.draggable:
+            return
+        self.tag_raise(self.draggable.image)
+        if self.signal:
+            self.signal("pickup_piece",tilex,tiley)
 
     def drag_motion(self,event):
         if not self.draggable:

@@ -66,6 +66,8 @@ class stateHandler:
                 except:
                     com={"com":"leaveroom","mod":"rooms"}
                     logging.exception()
+            case {"com":"leftroom",**_u}:
+                self.main.page(RoomPage.name)
 
 class mainApp:
     def __init__(self):
