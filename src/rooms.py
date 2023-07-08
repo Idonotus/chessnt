@@ -253,7 +253,7 @@ class ChessRoom(Room):
 
 class RoomServer:
     def __init__(self) -> None:
-        self.roomindex:typing.Mapping[str,Room]={}
+        self.roomindex:dict[str,Room]={}
         self.userindex={}
         self.mainRoom=SelRoom("mainroom")
         self.roomindex["menu"]=self.mainRoom

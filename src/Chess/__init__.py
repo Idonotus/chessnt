@@ -1,70 +1,7 @@
 import tkinter as tk
-from . import Logic, Graphics, Stateloader
+from . import Logic, Graphics, Stateloader, Turns
 
-def turngen(turnorder:list):
-    while True:
-        t=turnorder.pop(0)
-        if not isinstance(t,(list,tuple)):
-            t=(t,)
-        turnorder.append(t)
-        yield t
-class TurnIter:
-    def __init__(self,turnorder:list) -> None:
-        self.torder=turnorder
-    def validateorder(self):
-        for i,o in enumerate(self.torder):
-            if not isinstance(o,(tuple,list,int)):
-                raise TypeError
-            if isinstance(o,(int)):
-                self.torder[i]=[o]
-    def __setattr__(self, __name: str, __value) -> None:
-        o=self.torder
-        super().__setattr__(__name,__value)
-        if __name=="torder":
-            try:
-                self.validateorder()
-            except:
-                self.torder=o
-    def __iter__(self):
-        return self
-    def deactiveteam(self,teamid:int):
-        self.validateorder()
-        t=[]
-        for i,o in enumerate(self.torder):
-            if teamid in o:
-                for i,item in enumerate(o):
-                    if item==teamid:
-                        item+=1
-                        item*=-1
-                    o[i]=item
-            t.append(o)
-        self.torder=t
 
-    def activeteam(self,teamid: int):
-        self.validateorder()
-        t=[]
-        teamid+=1
-        teamid*=-1
-
-        for i,o in enumerate(self.torder):
-            if teamid in o:
-                for i,item in enumerate(o):
-                    if item==teamid:
-                        item+=1
-                        item*=-1
-                    o[i]=item
-            t.append(o)
-        self.torder=t
-    def __next__(self):
-        a=True
-        while a:
-            t=self.torder.pop(0)
-            self.torder.append(t)
-            for i in t:
-                if i>=0:
-                    a=False
-                    break
-        yield t
 
 pieces={
     "c":"cpawn",
@@ -82,7 +19,7 @@ class Game:
         self.logic.addpiece(x=x,y=y,name=name,team=team,**kwargs)
         self.gui.addpiece(x=x,y=y,name=name,team=team)
     def makemove(self,pos1,pos2):
-        if not self.logic.canmove(pos1,pos2):
+        if not self.logic.canmove(pos1,pos2,team=True):
             return
         r=self.logic.reqmovepiece(pos1,pos2)
         if r is None:
@@ -123,7 +60,7 @@ class Game:
         g.gui=Graphics.Gui(master,width,height,tile,signal=g.signal)
         g.gui.pack()
         g.logic=Logic.Logic(width,height,numteams)
-        g.conductor=turngen(turnorder)
+        g.conductor=Turns.TurnManager(turnorder)
         g.end=False
         return g
     
@@ -139,5 +76,5 @@ class Game:
         self.gui=Graphics.Gui.genboard(tk.Tk(),sizedata,data["boarddata"],self.signal)
         self.gui.pack()
         self.logic=Logic.Logic.genboard(data["numteams"],sizedata,data["boarddata"])
-        self.conductor=turngen(data["turnorder"])
+        self.conductor=Turns.TurnManager(data["turnorder"])
         self.end=False

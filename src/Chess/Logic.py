@@ -1,6 +1,7 @@
 from .Piece import PieceLogic
 from .Piece.Logic import Piece
 from .vectormath import vector
+from .Turns import Turn
 import logging
 
 class Team:
@@ -17,7 +18,7 @@ class Logic:
         self.data=[]
         self.teams=[]
         self.inactiveteams=[]
-        self.teamturn=[1]
+        self.teamturn:Turn=Turn(1)
         for i in range(numteams):
             self.teams.append(Team())
         for x in range(width):
@@ -126,15 +127,13 @@ class Logic:
             diff.append(dif_pair)
         return diff
 
-    def canmove(self,pos1,pos2,team=None):
+    def canmove(self,pos1,pos2,team=False):
         if not self.validatemove(pos2.x,pos2.y):
             return False
-        if team is not None and team not in self.teamturn:
-                return False
         movepiece=self.getpiece(pos=pos1)
         if not movepiece:
             return False
-        if movepiece.team!=team and team is not None:
+        if team and not self.teamturn.validatemove(movepiece):
             return False
         return movepiece.canmove(pos2)
 

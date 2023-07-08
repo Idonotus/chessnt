@@ -1,7 +1,7 @@
 {
     "numteams":2,
     "dim":[8,8],
-    "turnorder":[0,1],
+    "turnorder":[{"teams":[0]},{"teams":[1]}],
     "boarddata":[
         [{"name": "rook","pos": [0,0],"team": 0},{"name": "pawn","pos": [0,1],"team": 0,"direction": 0},null,null,null,null,{"name": "pawn","pos": [0,6],"team": 1,"direction": 2},{"name": "rook","pos": [0,7],"team": 1}],
         [{"name": "knight","pos": [1,0],"team": 0},{"name": "pawn","pos": [1,1],"team": 0,"direction": 0},null,null,null,null,{"name": "pawn","pos": [1,6],"team": 1,"direction": 2},{"name": "knight","pos": [1,7],"team": 1}],
