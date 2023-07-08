@@ -143,7 +143,7 @@ class Gui(tk.Canvas):
 
     def end(self,team):
         p=tk.Toplevel()
-        tk.Label(p,text=f"Team {team+1} lost").pack()
+        tk.Label(p,text=f"Team {team} lost").pack()
 
     def placepiece(self,Piece,x,y):
         x,y=self.localrotate(self.ROTATION,x,y)

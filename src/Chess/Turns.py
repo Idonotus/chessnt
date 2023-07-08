@@ -100,7 +100,9 @@ class TurnManager:
     def __next__(self):
         for i,turn in enumerate(self.torder):
             if turn.getActivity():
-                self.torder=self.torder[i:len(self.torder)]+self.torder[0:i]
+                self.torder=self.torder[i+1:len(self.torder)]+self.torder[0:i+1]
+                print(self.torder)
                 return turn
         else:
             raise Exception("No applicable turns")
+NULL_TURN=Turn(-1,piecemode="allow")

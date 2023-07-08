@@ -29,7 +29,10 @@ class Game:
     def endturn(self):
         if self.end:
             return
-        self.logic.endcheck()
+        endteam=self.logic.endcheck()
+        if endteam:
+            self.teamlose(endteam)
+            return
         if self.end:
             return
         self.logic.teamturn=next(self.conductor)
@@ -38,7 +41,7 @@ class Game:
         self.logic.updateallmoves()
     def teamlose(self,team):
         self.gui.end(team)
-        self.logic.teamturn=[-1]
+        self.logic.teamturn=Turns.NULL_TURN
     def highlightmoves(self,x,y):
         p=self.logic.getpiece(x=x,y=y)
         if not p:
