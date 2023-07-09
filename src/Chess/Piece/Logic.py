@@ -1,12 +1,13 @@
 from ..vectormath import *
 import logging
+from typing import Iterable
 
 class Piece:
     name="piece"
     def __init__(self,logic,x=0,y=0,team=0):
         self.inactive=False
         self.logic=logic
-        self.position=vector(x,y)
+        self.position:vector=vector(x,y)
         self.availmoves:list[vector]=[]
         self.availtakes:list[vector]=[]
         self.team=team
@@ -20,24 +21,14 @@ class Piece:
     def move(self,move,data):
         if move not in self.availmoves and move not in self.availtakes:
             return
-        x, y=self.position.intcoords()
-        mx, my=move.intcoords()
-        data[x][y]=None
-        data[mx][my]=self
+        pos=self.position.intcoords()
+        pos2=move.intcoords()
+        data.pop(pos)
+        data[pos2]=self
         self.position=move
 
     def canmove(self,move):
         return move in self.availmoves or move in self.availtakes
-
-    def takepiece(self,x,y):
-        self.board.data[x][y].delete()
-        self.movepiece(x,y)
-
-    def movepiece(self,x,y):
-        pos=self.position
-        self.boarddata[x][y]=self
-        self.position=vector(x,y)
-        self.boarddata[int(pos.x)][int(pos.y)]=None
     
     def erasemoves(self):
         self.availmoves=[]
@@ -56,15 +47,16 @@ class Piece:
     def getavailmoves(self,*args,**kwargs):
         logging.error("Class has not overwritten getmoves functionality")
 
-    def checkcheck(self,moves):
+    def checkcheck(self,moves:Iterable[vector]):
         data=self.logic.makecopy()
-        x=int(self.position.x)
-        y=int(self.position.y)
-        data[x][y]=None
+        data.pop(self.position.intcoords())
         safemoves=[]
         for move in moves:
-            takenpiece=data[int(move.x)][int(move.y)]
-            data[int(move.x)][int(move.y)]=self
+            if move.intcoords()in data:
+                takenpiece=data[move.intcoords()]
+            else:
+                takenpiece=None
+            data[move.intcoords()]=self
             possiblemoves=self.logic.getallmoves(data,teams=[self.team],teaminv=True)[1]
             unsafe=False
             for king in self.logic.teams[self.team].kings:
@@ -73,7 +65,10 @@ class Piece:
                     break
             if not unsafe:
                 safemoves.append(move)
-            data[int(move.x)][int(move.y)]=takenpiece
+            if takenpiece:
+                data[move.intcoords()]=takenpiece
+            else:
+                data.pop(move.intcoords())
         return safemoves
 
     def __eq__(self, __value) -> bool:

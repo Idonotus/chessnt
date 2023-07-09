@@ -2,7 +2,6 @@ import tkinter as tk
 from . import Logic, Graphics, Stateloader, Turns
 
 
-
 pieces={
     "c":"cpawn",
     "p":"pawn",

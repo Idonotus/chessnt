@@ -23,18 +23,18 @@ class Pawn(Piece):
         availtakes=[] 
         for move in self.moves+self.startmove:
             move+=self.position
-            if not self.logic.validatemove(move.x,move.y):
+            if not self.logic.validatebounds(move.x,move.y):
                 break
-            if boarddata[int(move.x)][int(move.y)]:
+            if move.intcoords() in boarddata:
                 break
             availmoves.append(move)
         for take in self.takes:
             take+=self.position
-            if not self.logic.validatemove(take.x,take.y):
+            if not self.logic.validatebounds(take.x,take.y):
                 continue
-            if not boarddata[int(take.x)][int(take.y)]:
+            if take.intcoords() not in boarddata:
                 continue
-            if boarddata[int(take.x)][int(take.y)].team==self.team:
+            if boarddata[take.intcoords()].team==self.team:
                 continue
             availtakes.append(take)
         return super().validatecheck(availmoves,availtakes,cc)
@@ -51,7 +51,7 @@ class Pawn(Piece):
         m=move+self.moves[0]
         x=m.x
         y=m.y
-        if self.logic.validatemove(x,y):
+        if self.logic.validatebounds(x,y):
             return
         self.promote()
         
@@ -63,11 +63,11 @@ class CowardPawn(Pawn):
     #an inside joke that the pawn instead of promoting would just turn around
     def promote(self):
         x, y = self.position.intcoords()
-        self.logic.addpiece(x,y,"queen",self.team,direction=self.direction+2)   
+        self.logic.addpiece(x,y,"cpawn",self.team,direction=self.direction+2)   
 class Rook(Piece):
     name="rook"
     def __init__(self, logic, x=0, y=0, team=0) -> None:
-        self.lines=vector(0,1).all90()
+        self.lines:list[vector]=vector(0,1).all90()
         super().__init__(logic, x, y, team)
     def getavailmoves(self,boarddata,cc=False):
         availmoves=[]
@@ -76,10 +76,10 @@ class Rook(Piece):
             searchpos=self.position
             while True:
                 searchpos+=direction
-                if not self.logic.validatemove(searchpos.x,searchpos.y):
+                if not self.logic.validatebounds(searchpos.x,searchpos.y):
                     break
-                if boarddata[int(searchpos.x)][int(searchpos.y)]:
-                    if boarddata[int(searchpos.x)][int(searchpos.y)].team!=self.team:
+                if searchpos.intcoords() in boarddata:
+                    if boarddata[searchpos.intcoords()].team != self.team:
                         availtakes.append(searchpos)
                     break
                 availmoves.append(searchpos)
@@ -96,10 +96,10 @@ class King(Piece):
         availtakes=[] 
         for move in self.moves:
             move+=self.position
-            if not self.logic.validatemove(move.x,move.y):
+            if not self.logic.validatebounds(move.x,move.y):
                 continue
-            if boarddata[int(move.x)][int(move.y)]:
-                if boarddata[int(move.x)][int(move.y)].team==self.team:
+            if move.intcoords() in boarddata:
+                if boarddata[move.intcoords()].team==self.team:
                     continue
                 availtakes.append(move)
             else:
@@ -109,11 +109,14 @@ class King(Piece):
         data=self.logic.makecopy()
         x=int(self.position.x)
         y=int(self.position.y)
-        data[x][y]=None
+        data.pop(self.position.intcoords())
         safemoves=[]
         for move in moves:
-            takenpiece=data[int(move.x)][int(move.y)]
-            data[int(move.x)][int(move.y)]=self
+            if move.intcoords() in data:
+                takenpiece=data[move.intcoords()]
+            else:
+                takenpiece=None
+            data[move.intcoords()]=self
             possiblemoves=self.logic.getallmoves(data,teams=[self.team],teaminv=True)[2]
             unsafe=False
             for king in self.logic.teams[self.team].kings:
@@ -126,7 +129,10 @@ class King(Piece):
                     break
             if not unsafe:
                 safemoves.append(move)
-            data[int(move.x)][int(move.y)]=takenpiece
+            if takenpiece:
+                data[move.intcoords()]=takenpiece
+            else:
+                data.pop(move.intcoords())
         return safemoves
 
 class Bishop(Piece):
@@ -141,10 +147,10 @@ class Bishop(Piece):
             searchpos=self.position
             while True:
                 searchpos+=direction
-                if not self.logic.validatemove(searchpos.x,searchpos.y):
+                if not self.logic.validatebounds(searchpos.x,searchpos.y):
                     break
-                if boarddata[int(searchpos.x)][int(searchpos.y)]:
-                    if boarddata[int(searchpos.x)][int(searchpos.y)].team!=self.team:
+                if searchpos.intcoords() in boarddata:
+                    if boarddata[searchpos.intcoords()].team != self.team:
                         availtakes.append(searchpos)
                     break
                 availmoves.append(searchpos)
@@ -162,10 +168,10 @@ class Queen(Piece):
             searchpos=self.position
             while True:
                 searchpos+=direction
-                if not self.logic.validatemove(searchpos.x,searchpos.y):
+                if not self.logic.validatebounds(searchpos.x,searchpos.y):
                     break
-                if boarddata[int(searchpos.x)][int(searchpos.y)]:
-                    if boarddata[int(searchpos.x)][int(searchpos.y)].team!=self.team:
+                if searchpos.intcoords() in boarddata:
+                    if boarddata[searchpos.intcoords()].team != self.team:
                         availtakes.append(searchpos)
                     break
                 availmoves.append(searchpos)
@@ -181,10 +187,10 @@ class Knight(Piece):
         availtakes=[]
         for move in self.moves:
             move+=self.position
-            if not self.logic.validatemove(move.x,move.y):
+            if not self.logic.validatebounds(move.x,move.y):
                 continue
-            if boarddata[int(move.x)][int(move.y)]:
-                if boarddata[int(move.x)][int(move.y)].team==self.team:
+            if move.intcoords() in boarddata:
+                if boarddata[move.intcoords()].team==self.team:
                     continue
                 availtakes.append(move)
                 continue

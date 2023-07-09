@@ -1,4 +1,5 @@
 {
+    "teamnames":["Red","Blue"],
     "numteams":2,
     "dim":[8,8],
     "turnorder":[{"teams":[0]},{"teams":[1]}],

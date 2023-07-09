@@ -3,7 +3,7 @@ from .Piece.Logic import Piece
 from .vectormath import vector
 from .Turns import Turn
 import logging
-
+from typing import overload
 class Team:
     """Container for team data"""
     def __init__(self) -> None:
@@ -15,16 +15,12 @@ class Logic:
     def __init__(self,width,height,numteams) -> None:
         self.WIDTH=width
         self.HEIGHT=height
-        self.data=[]
+        self.data={}
         self.teams=[]
         self.inactiveteams=[]
         self.teamturn:Turn=Turn(1)
         for i in range(numteams):
             self.teams.append(Team())
-        for x in range(width):
-            self.data.append([])
-            for _ in range(height):
-                self.data[x].append(None)
         self.PIECES=PieceLogic.getallpieces()
     
     def setinactive(self,teamid):
@@ -40,30 +36,30 @@ class Logic:
         if teamid not in self.inactiveteams:
             return
         self.inactiveteams.remove(teamid)
-        p=self.getpieces(teams=[teamid],inactive=False)
+        p=self.getpieces(teams=[teamid],inactive=True)
         for t in p:
-            t.updateMoves()
             t.inactive=False
+            t.updateMoves()
 
-    def getpieces(self,data=None,teams=[],teaminv=False,inactive=True):
+    def getpieces(self,data=None,teams=[],teaminv=False,inactive=True) -> list[Piece]:
         if not data:
             data=self.data
         pieces=[]
-        for ystrip in data:
-            for tile in ystrip:
-                if not tile:
+        for pos in data:
+            tile=data[pos]
+            if not tile:
+                continue
+            if not(teaminv ^ (tile.team in teams)):
+                continue
+            if inactive and hasattr(tile,"inactive"):
+                if tile.inactive:
                     continue
-                if not(teaminv ^ (tile.team in teams)):
-                    continue
-                if inactive and hasattr(tile,"inactive"):
-                    if tile.inactive:
-                        continue
-                pieces.append(tile)
+            pieces.append(tile)
         return pieces
 
     def endcheck(self):
-        for i,_ in enumerate(self.teams):
-            if hasattr(self.teams[i],"non-player"):
+        for i,t in enumerate(self.teams):
+            if hasattr(t,"non-player"):
                 continue
             teammoves=self.getallmoves(teams=[i],cc=True)[2]
             if len(teammoves)==0:
@@ -74,14 +70,10 @@ class Logic:
         return len(self.getallmoves(teams=[team]))>0
 
     def makecopy(self):
-        copy=[]
-        for n,ystrip in enumerate(self.data):
-            copy.append([])
-            for tile in ystrip:
-                copy[n].append(tile)
+        copy=self.data.copy()
         return copy
 
-    def validatemove(self,x,y):
+    def validatebounds(self,x,y):
         if not 0<=x<self.WIDTH:
             return False
         if not 0<=y<self.HEIGHT:
@@ -113,22 +105,31 @@ class Logic:
         if name not in self.PIECES:
             logging.warn(f"Logic not found for piece \"{name}\". Using dummy instead")
             name="dummy"
-        if not 0<=x<len(self.data):
+        if not self.validatebounds(x,y):
             logging.warn("Out of bounds")
-        if not 0<=y<len(self.data[x]):
-            logging.warn("Out of bounds")
-        self.data[x][y]=self.PIECES[name](logic=self,x=x,y=y,team=team,**kwargs)
+        self.data[(x,y)]=self.PIECES[name](logic=self,x=x,y=y,team=team,**kwargs)
 
-    def getdifferences(self,base:list,changed:list):
+    def getdifferences(self,base:dict,changed:dict):
         diff=[]
-        for dif_pair in [[(x,y),changed[x][y]] for x in range(len(changed)) for y in range(len(changed[x])) if changed[x][y]!=base[x][y]]:
+        allpos=set(base.keys())
+        allpos.update(changed.keys())
+        for pos in allpos:
+            if not ((pos in base) ^ (pos in changed)):
+                if base[pos]==changed[pos]:
+                    continue
+                else:
+                    dif_pair=[pos,changed[pos]]
+            elif pos in changed:
+                dif_pair=[pos,changed[pos]]
+            else:
+                dif_pair=[pos,None]
             if isinstance(dif_pair[1],Piece):
                 dif_pair[1]=dif_pair[1].export()
             diff.append(dif_pair)
         return diff
 
     def canmove(self,pos1,pos2,team=False):
-        if not self.validatemove(pos2.x,pos2.y):
+        if not self.validatebounds(pos2.x,pos2.y):
             return False
         movepiece=self.getpiece(pos=pos1)
         if not movepiece:
@@ -146,15 +147,26 @@ class Logic:
         if a=="return":
             return
         return self.getdifferences(c,self.data)
-
-    def ispiece(self,*, pos=None, x=None, y=None):
-        return bool(self.getpiece(pos=pos,x=x,y=y))
-
-    def getpiece(self,*, pos=None, x=None, y=None) -> Piece:
+    
+    @overload
+    def ispiece(self,*, pos:vector=None) -> bool:...
+    @overload
+    def ispiece(self,*, x:int=None, y:int=None) -> bool:...
+    def ispiece(self,*, pos:vector=None, x:int=None, y:int=None) -> bool:
+        if not (x is None and y is None) and pos is None:
+            pos=vector(x,y)
+        return pos.intcoords() in self.data
+    
+    @overload
+    def getpiece(self,*, x:int=None, y:int=None) -> Piece:...
+    @overload
+    def getpiece(self,*, pos:vector=None) -> Piece:...
+    def getpiece(self,*, pos:vector=None, x:int=None, y:int=None) -> Piece:
+        if not (x is None and y is None) and pos is None:
+            pos=vector(x,y)
         if isinstance(pos,vector):
-            return self.data[int(pos.x)][int(pos.y)]
-        if not (x is None and y is None):
-            return self.data[x][y]
+            return self.data[pos.intcoords()]
+        
     @staticmethod
     def genboard(numteams,dim,boarddata):
         l=Logic(dim[0],dim[1],numteams)

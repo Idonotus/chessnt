@@ -101,7 +101,6 @@ class TurnManager:
         for i,turn in enumerate(self.torder):
             if turn.getActivity():
                 self.torder=self.torder[i+1:len(self.torder)]+self.torder[0:i+1]
-                print(self.torder)
                 return turn
         else:
             raise Exception("No applicable turns")

@@ -72,6 +72,7 @@ class stateHandler:
 class mainApp:
     def __init__(self):
         self.win=tk.Tk()
+        self.win.title("Chessn't")
         self.win.geometry("1300x700")
         self.win.protocol("WM_DELETE_WINDOW",self.onclose)
 
@@ -96,7 +97,7 @@ class mainApp:
 
 
         self.backproc={}
-        self.curpage=None
+        self.curpage:Any=None
         self.s=appNetClient(self)
         self.pagelock=threading.Lock()
         self.page(ConnectPage.name)
