@@ -101,6 +101,16 @@ class ChessRoom(Room):
         super().leave(userobj)
         if userobj.name in self.userteams:
             self.userteams.pop(userobj.name)
+            if self.running and not self.updateteams():
+                self.endGame(msg="%r by resignation")
+
+    def updateteams(self):
+        if not self.running:
+            return False
+        self.teamsleft=self.teamsleft.intersection(set(self.userteams.values()))
+        if len(self.teamsleft)<=1:
+            return False
+        return True
 
     def canSetTeam(self,userobj,name):
         if self.running:
@@ -123,10 +133,15 @@ class ChessRoom(Room):
         board=data["boarddata"]
         self.order=data["turnorder"]
         self.logic=Chess.Logic.Logic.genboard(teamcount,sizedata,board)
-        self.turnorder=Chess.turngen(data["turnorder"])
+        self.turnorder=Chess.Turns.TurnManager(data["turnorder"])
         self.turn=next(self.turnorder)
         self.logic.teamturn=self.turn
         self.running=True
+        
+        self.teamsleft=set(self.logic.teams.keys())
+        if not self.updateteams():
+            self.endGame(msg="Need more teams available")
+            return
         c={"com":"loadboard","data":self.exportBoard()}
         self.broadcast(c)
         self.logic.updateallmoves()
@@ -138,7 +153,12 @@ class ChessRoom(Room):
         del self.order
         com={"com":"loadboard","data":self.exportBoard()}
         self.broadcast(com)
-    
+
+    def endGame(self,msg=""):
+        c={"com":"endmsg","msg":msg}
+        self.broadcast(c)
+        self.stopGame()
+
     def AuthMove(self, userobj, pos):
         p=self.logic.getpiece(pos=pos)
         if userobj.name not in self.userteams:
@@ -163,8 +183,26 @@ class ChessRoom(Room):
         self.endturn()
         return True
 
+
+    def removeteam(self,teamid):
+        self.turnorder.deactiveteam(teamid)
+        self.logic.setinactive(teamid)
+        self.teamsleft.remove(teamid)
+
     def endturn(self):
         self.turn=next(self.turnorder)
+        for team in self.teamsleft.copy():
+            if not self.logic.kingsalive(team):
+                self.removeteam(team)
+        if len(self.teamsleft)<=1:
+            self.endGame(msg="%r by regicide")
+            return
+        for team in self.turn.teams.copy():
+            if self.logic.incheckmate(team):
+                self.removeteam(team)
+        if len(self.teamsleft)<=1:
+            self.endGame(msg="%r by checkmate")
+            return
         self.logic.teamturn=self.turn
         self.logic.updateallmoves()
 
@@ -225,13 +263,7 @@ class ChessRoom(Room):
             d["running"]=self.running
             return d
         d=self.logic.data
-        dup=[]
-        for x,strip in enumerate(d):
-            dup.append([])
-            for y,p in enumerate(strip):
-                if isinstance(p,Chess.Logic.Piece):
-                    p=p.export()
-                dup[x].append(p)
+        dup=[b.export() for b in d.values()]
         bd={
             "numteams":len(self.logic.teams),
             "dim":[self.logic.WIDTH,self.logic.HEIGHT],

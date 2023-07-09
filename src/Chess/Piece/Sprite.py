@@ -2,7 +2,10 @@ from ..vectormath import *
 import random
 
 def randcolor():
-    return f"#{random.randint(0,255):02x}{random.randint(0,255):02x}{random.randint(0,255):02x}"
+    r=random.randint(0,255)
+    b=random.randint(0,255)
+    g=random.randint(0,255)
+    return f"#{r:02x}{b:02x}{g:02x}"
 
 class Sprite:
     def __init__(self,gui,size,sprite,x=0,y=0,team=0):
@@ -14,11 +17,11 @@ class Sprite:
         self.position=vector(x,y)
         self.TILESIZE=size
         self.team=team
-        if team < len(gui.teamcolors):
+        if team in gui.teamcolors:
             color=gui.teamcolors[team]
         else:
             color=randcolor()
-            gui.teamcolors.append(color)
+            gui.teamcolors[team]=color
         self.image=gui.create_polygon(*points,fill=color)
         self.returnpiece()
 

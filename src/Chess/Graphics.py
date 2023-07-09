@@ -24,7 +24,7 @@ class Gui(tk.Canvas):
         self.bind("<B1-Motion>",self.drag_motion)
         self.bind("<ButtonRelease-1>",self.drag_stop)
         self.data=[]
-        self.teamcolors=["#FF0000","#0000FF"]
+        self.teamcolors={0:"#FF0000",1:"#0000FF",-1:"#444444"}
         self.tiles=[]
         self.game=None
         self.automaticreturn=True
@@ -50,12 +50,17 @@ class Gui(tk.Canvas):
     @staticmethod
     def genboard(master,dim,boarddata,signal):
         g=Gui(master=master,width=dim[0],height=dim[1],signal=signal)
-        for ystrip in boarddata:
-            for tile in ystrip:
-                if not tile:
-                    continue
+        if isinstance(boarddata[0],dict):
+            for tile in boarddata:
                 x, y=tile["pos"] 
-                g.addpiece(x=x,y=y,name=tile["name"],team=tile["team"])
+                g.addpiece(x=x,y=y,**tile)
+        if isinstance(boarddata[0],list):
+            for ystrip in boarddata:
+                for tile in ystrip:
+                    if not tile:
+                        continue
+                    x, y=tile["pos"] 
+                    g.addpiece(x=x,y=y,name=tile["name"],team=tile["team"])
         return g
 
     def setstylesheet(self,sheet):
@@ -70,24 +75,26 @@ class Gui(tk.Canvas):
             raise TypeError
         self.highlights[name]=colors
 
-    def addpiece(self,name,x,y,team):
+    def addpiece(self,name,x,y,team,inactive=False,**kwargs):
         if name not in self.SPRITES:
             logging.warn(f"Sprite not found for piece \"{name}\". Using dummy instead")
             name="dummy"
         if not 0<=x<len(self.data) or not 0<=y<len(self.data[x]):
             logging.warn(f"Coordinate x:{x} y:{y} of bounds")
             return
+        if inactive:
+            team=-1
         p=Sprite(self,self.TILESIZE,x=x,y=y,team=team,sprite=self.SPRITES[name])
         self.data[x][y]=p
     
-    def settile(self,x,y,name=None,team=None):
+    def settile(self,x,y,name=None,team=None,**kwargs):
         if self.data[x][y]:
                 self.data[x][y].delete()
         if name is None:
             return
         if team is None:
             return
-        self.addpiece(name,x,y,team)
+        self.addpiece(name,x,y,team,**kwargs)
 
     def localrotate(self,rotation,x,y,inv=False):
         key=vector(1,1)
@@ -137,7 +144,7 @@ class Gui(tk.Canvas):
     def applychanges(self,changes):
         for item in changes:
             if item[1]:
-                self.settile(item[0][0],item[0][1],item[1]["name"],item[1]["team"])
+                self.settile(item[0][0],item[0][1],**item[1])
             else:
                 self.settile(item[0][0],item[0][1],None)
 

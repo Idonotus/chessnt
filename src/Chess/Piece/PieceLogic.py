@@ -5,7 +5,7 @@ from ..vectormath import *
 
 class Pawn(Piece):
     name="pawn"
-    def __init__(self,logic, x=0, y=0,direction=None,team=0) -> None:
+    def __init__(self,logic, x=0, y=0,direction=None,team=0,**kwargs) -> None:
         if not direction:
             if team==1:
                 direction=2
@@ -66,7 +66,7 @@ class CowardPawn(Pawn):
         self.logic.addpiece(x,y,"cpawn",self.team,direction=self.direction+2)   
 class Rook(Piece):
     name="rook"
-    def __init__(self, logic, x=0, y=0, team=0) -> None:
+    def __init__(self, logic, x=0, y=0, team=0,**kwargs) -> None:
         self.lines:list[vector]=vector(0,1).all90()
         super().__init__(logic, x, y, team)
     def getavailmoves(self,boarddata,cc=False):
@@ -87,7 +87,7 @@ class Rook(Piece):
 
 class King(Piece):
     name="king"
-    def __init__(self,logic,x=0, y=0,team=0) -> None:
+    def __init__(self,logic,x=0, y=0,team=0,**kwargs) -> None:
         self.moves=vector(0,1).all90()+vector(1,1).all90()
         logic.teams[team].kings.append(self)
         super().__init__(logic, x, y,team)
@@ -137,7 +137,7 @@ class King(Piece):
 
 class Bishop(Piece):
     name="bishop"
-    def __init__(self, logic, x=0, y=0, team=0) -> None:
+    def __init__(self, logic, x=0, y=0, team=0,**kwargs) -> None:
         self.lines=vector(1,1).all90()
         super().__init__(logic, x, y, team)
     def getavailmoves(self,boarddata,cc=False):
@@ -158,7 +158,7 @@ class Bishop(Piece):
 
 class Queen(Piece):
     name="queen"
-    def __init__(self, logic, x=0, y=0, team=0) -> None:
+    def __init__(self, logic, x=0, y=0, team=0,**kwargs) -> None:
         self.lines=vector(1,1).all90()+vector(0,1).all90()
         super().__init__(logic, x, y, team)
     def getavailmoves(self,boarddata,cc=False):
@@ -179,7 +179,7 @@ class Queen(Piece):
 
 class Knight(Piece):
     name="knight"
-    def __init__(self, logic, x=0, y=0, team=0) -> None:
+    def __init__(self, logic, x=0, y=0, team=0,**kwargs) -> None:
         self.moves=vector(1,2).all90()+vector(-1,2).all90()
         super().__init__(logic, x, y, team)
     def getavailmoves(self,boarddata,cc=False):

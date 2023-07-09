@@ -4,7 +4,7 @@ from typing import Iterable
 
 class Piece:
     name="piece"
-    def __init__(self,logic,x=0,y=0,team=0):
+    def __init__(self,logic,x=0,y=0,team=0,**kwargs):
         self.inactive=False
         self.logic=logic
         self.position:vector=vector(x,y)
@@ -12,11 +12,17 @@ class Piece:
         self.availtakes:list[vector]=[]
         self.team=team
     
+    def setinactive(self,*args):
+        self.inactive=True
+    
+    def setactive(self,*args):
+        self.inactive=False
+
     def getallmoves(self):
         return self.availmoves+self.availtakes
 
     def export(self):
-        return {"name":self.name,"pos":self.position.intcoords(),"team":self.team}
+        return {"name":self.name,"pos":self.position.intcoords(),"team":self.team,"inactive":self.inactive}
 
     def move(self,move,data):
         if move not in self.availmoves and move not in self.availtakes:
@@ -74,4 +80,4 @@ class Piece:
     def __eq__(self, __value) -> bool:
         if not isinstance(__value,type(self)):
             return False
-        return (self.position,self.team)==(__value.position,__value.team)
+        return (self.position,self.team,self.inactive)==(__value.position,__value.team,__value.inactive)

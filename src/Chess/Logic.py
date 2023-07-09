@@ -1,45 +1,44 @@
+from __future__ import annotations
 from .Piece import PieceLogic
 from .Piece.Logic import Piece
 from .vectormath import vector
 from .Turns import Turn
 import logging
 from typing import overload
+
 class Team:
     """Container for team data"""
     def __init__(self) -> None:
         self.kings=[]
-        self.checked=False
 
 class Logic:
     """Handles chess logic. Essential for chess to actually work"""
     def __init__(self,width,height,numteams) -> None:
         self.WIDTH=width
         self.HEIGHT=height
-        self.data={}
-        self.teams=[]
-        self.inactiveteams=[]
+        self.data:dict[tuple,Piece]={}
+        self.teams:dict[int,Team]={}
+        self.inactiveteams={}
         self.teamturn:Turn=Turn(1)
         for i in range(numteams):
-            self.teams.append(Team())
+            self.teams[i]=Team()
         self.PIECES=PieceLogic.getallpieces()
     
     def setinactive(self,teamid):
         if teamid in self.inactiveteams:
             return
-        self.inactiveteams.append(teamid)
+        self.inactiveteams[teamid]=self.teams[teamid]
         p=self.getpieces(teams=[teamid],inactive=False)
         for t in p:
-            t.erasemoves()
-            t.inactive=True
+            t.setinactive(teamid)
 
     def setactive(self,teamid):
         if teamid not in self.inactiveteams:
             return
-        self.inactiveteams.remove(teamid)
+        self.inactiveteams.pop(teamid)
         p=self.getpieces(teams=[teamid],inactive=True)
         for t in p:
-            t.inactive=False
-            t.updateMoves()
+            t.setactive(teamid)
 
     def getpieces(self,data=None,teams=[],teaminv=False,inactive=True) -> list[Piece]:
         if not data:
@@ -57,13 +56,25 @@ class Logic:
             pieces.append(tile)
         return pieces
 
-    def endcheck(self):
-        for i,t in enumerate(self.teams):
-            if hasattr(t,"non-player"):
-                continue
-            teammoves=self.getallmoves(teams=[i],cc=True)[2]
-            if len(teammoves)==0:
-                return i+1
+    def kingsalive(self,teamid):
+        t=self.teams[teamid]
+        if hasattr(t,"non_player"):
+            if t.non_player:
+                return True
+        for k in t.kings:
+            k:PieceLogic.King
+            if k!=self.getpiece(pos=k.position):
+                return False
+        return True
+
+    def incheckmate(self,teamid):
+        t=self.teams[teamid]
+        if hasattr(t,"non_player"):
+            if t.non_player:
+                return False
+        teammoves=self.getallmoves(teams=[teamid],cc=True)[2]
+        if len(teammoves)==0:
+            return True
         return False
     
     def matecheck(self,team):
@@ -168,13 +179,17 @@ class Logic:
             return self.data[pos.intcoords()]
         
     @staticmethod
-    def genboard(numteams,dim,boarddata):
+    def genboard(numteams,dim,boarddata)->Logic:
         l=Logic(dim[0],dim[1],numteams)
-        for ystrip in boarddata:
-            for tile in ystrip:
-                if not tile:
-                    continue
-                tile=tile.copy()
-                x, y=tile.pop("pos")
-                l.addpiece(x=x,y=y,**tile)
+        if isinstance(boarddata,dict):
+            for pos,tile in boarddata.items():
+                l.addpiece(x=pos[0],y=pos[1],**tile)
+        if isinstance(boarddata,list):
+            for ystrip in boarddata:
+                for tile in ystrip:
+                    if not tile:
+                        continue
+                    tile=tile.copy()
+                    x, y=tile.pop("pos")
+                    l.addpiece(x=x,y=y,**tile)
         return l
