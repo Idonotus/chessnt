@@ -99,7 +99,7 @@ class ListBox(ttk.Frame):
         self.scroll.grid(row=0,column=1,sticky="NS")
         frame=ttk.Frame(self.c)
         self.c.create_window((0,0),window=frame,anchor="nw",tags="lframe")
-        self.c.bind("<Configure>",lambda e: self.resizeconfig(e))
+        self.c.bind("<Configure>",lambda e: self.resizeconfig())
         frame.bind("<Configure>",lambda e: self.c.configure(scrollregion=self.c.bbox("all")))
         frame.grid_columnconfigure(0,weight=1)
         self.listframe=tk.Frame(frame,bg="red")
@@ -121,12 +121,12 @@ class ListBox(ttk.Frame):
         self.c.unbind_all("<Button-4>")
         self.c.unbind_all("<Button-5>")
     
-    def resizeconfig(self,e=None):
+    def resizeconfig(self):
         height=1
-        if self.listframe.winfo_height()<self.c.winfo_height():
-            height=self.c.winfo_height()-self.listframe.winfo_height()
+        if self.listframe.cget("height")<self.c.winfo_height():
+            height=self.c.winfo_height()-self.listframe.cget("height")
         self.margin.config(height=height)
-        self.c.itemconfig("lframe",width=self.c.winfo_width()-4)
+        self.c.itemconfig("lframe",width=self.c.winfo_width())
 
     def insert(self,item:ttk.Frame,index=tk.END):
         if index==tk.END:

@@ -79,6 +79,14 @@ class SelRoom(Room):
     PAGENAME="Pr-sel"
     persist=True
 
+    def leave(self,userobj):
+        if userobj.name not in self.userlist:
+            raise FileExistsError
+        self.userlist.pop(userobj.name)
+        com={"com":"userleave","name":userobj.name}
+        self.broadcast(com)
+
+
 class ChessRoom(Room):
     PAGENAME="Pr-chess"
     def __init__(self, name: str, *, private: bool = False, password: str = None) -> None:
@@ -174,7 +182,7 @@ class ChessRoom(Room):
             return
         if not self.AuthMove(userobj,pos1):
             return
-        if not self.logic.canmove(pos1,pos2):
+        if not self.logic.canmove(pos1,pos2,team=True):
             return
         r=self.logic.reqmovepiece(pos1,pos2)
         if not r:
@@ -197,6 +205,7 @@ class ChessRoom(Room):
         if len(self.teamsleft)<=1:
             self.endGame(msg="%r by regicide")
             return
+        
         for team in self.turn.teams.copy():
             if self.logic.incheckmate(team):
                 self.removeteam(team)

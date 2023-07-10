@@ -57,6 +57,7 @@ class ChessPage(ttk.Frame):
     def adduser(self,name,auth=False,team=None):
         a=UserData(self.ulist.getmaster(),name,auth=auth,team=team,command=self.teamSetEvent)
         a.setTeam("None")
+        self.teamauth[name]=auth
         self.ulist.insert(a)
     
     def teamSetEvent(self,team,d:UserData):
@@ -105,7 +106,10 @@ class ChessPage(ttk.Frame):
                 self.ulist.setTeam(name,team)
             case {"com":"userjoin","user":name,"auth":auth,**_u}:
                 self.adduser(name,auth)
-            case {"com":"userleave","user":name,**_u}:
+            case {"com":"userleave","name":name,**_u}:
+                print(name)
+                if name in self.teamauth:
+                    self.teamauth.pop(name)
                 self.ulist.removeName(name)
             case {"com":"loadmoves","dif":dif,**_u}:
                 self.g.applychanges(dif)
@@ -152,5 +156,6 @@ if __name__=="__main__":
     v.adduser("L bozo||>|><XS@CSKAEJHAUIOGOUHI",auth=True)
     for n in v.ulist.users:
         v.ulist.setTeam(n,random.choice(v.ulist.users[n].possibleteams))
-    v.ulist.removeName("L bozo||>|><XS@CSKAEJHAUIOGOUHI")
+    v.after(1000,lambda:v.ulist.removeName("L bozo||>|><XS@CSKAEJHAUIOGOUHI"))
+    v.after(1000,lambda:v.ulist.removeName("pizza"))
     v.mainloop()

@@ -6,11 +6,11 @@ class Turn:
         if piecemode not in ["off","allow","deny"]:
             piecemode="off"
         self.piecemode="off"
-        self.teams:set={}
-        self.pieces:set={}
+        self.teams:set=set()
+        self.pieces:set=set()
         self.setTeams(teams)
         self.setPieces(pieces)
-        self.deactivatedteams:set={}
+        self.deactivatedteams:set=set()
         
     @overload
     def setPieces(self,pieces:str): ...
