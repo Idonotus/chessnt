@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk,messagebox
 from WigExtras import NameEntry,LenPassEntry,chatWidget
 import json
 import logging
@@ -220,6 +220,11 @@ class RoomPage(ttk.Frame):
                 self.addRoom({"name":name,"password":ispassprot,"private":ispriv})
             case {"com":"hideroom","name":name}:
                 self.removeRoom(name)
+            case {"com":"raiseError","type":"AuthDeny"}:
+                messagebox.showerror("Could not join room ¯\_(ツ)_/¯")
+            case {"com":"raiseError","type":"RoomExists"}:
+                messagebox.showerror("This room already exists")
+            
 
 def roomcredcheck(roomname,roompass="",private=False):
     if not 3<=len(roomname)<=20:

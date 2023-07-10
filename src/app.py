@@ -5,7 +5,7 @@ from Page_Rooms import RoomPage
 from NetHandler import appNetClient
 from Page_Chess import ChessPage
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk,messagebox
 import logging
 import threading
 
@@ -68,6 +68,8 @@ class stateHandler:
                     logging.exception()
             case {"com":"leftroom",**_u}:
                 self.main.page(RoomPage.name)
+            case {"com":"raiseError","type":"NotInRoom"}:
+                messagebox.showerror("This should not happen","You have become desynced. Please contact dev")
 
 class mainApp:
     def __init__(self):

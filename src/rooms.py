@@ -163,6 +163,10 @@ class ChessRoom(Room):
         self.broadcast(com)
 
     def endGame(self,msg=""):
+        if len(self.teamsleft)==0:
+            msg.replace("%r","Draw")
+        elif len(self.teamsleft)==1:
+            msg.replace("%r",f"Team {list(self.teamsleft)[0]}")
         c={"com":"endmsg","msg":msg}
         self.broadcast(c)
         self.stopGame()

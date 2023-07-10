@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk,messagebox
 from WigExtras import UserData,UserList
 from Chess.Graphics import Gui
 import random
@@ -135,13 +135,15 @@ class ChessPage(ttk.Frame):
                     self.g.highlightalltiles("default")
                 self.updatetoggle()
                 self.changeteamauth()                
-
+            
+            case {"com":"endmsg","msg":msg,**_u}:
+                messagebox.showinfo(self,message=msg)
+            
             case {"com":"loaduser","data":data}:
                 for n in self.ulist.users:
                     self.ulist.removeName(n)
                 for item in data:
                     self.adduser(*item)
-
             case {"com":"highlightboard","highlight":highlight,**_u}:
                 self.g.highlightboard(highlight=highlight)
             case {"com":"returnpiece","pos":[x,y],**_u}:
