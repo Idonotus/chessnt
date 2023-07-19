@@ -4,7 +4,7 @@ from .Piece.Sprite import Sprite
 import logging
 import tkinter as tk
 from . import assetLoader
-
+import threading
 
 class Gui(tk.Canvas):
     """Handles chess GUI/user interaction"""
@@ -12,9 +12,8 @@ class Gui(tk.Canvas):
         self.WIDTH=width
         self.HEIGHT=height
         self.TILESIZE=tile
-        self.RETURNDELAY=0
+        self.RETURNDELAY=1000
         self.ROTATION=0
-        self.AUTOMATICRETURN=True
         self.SPRITES=assetLoader.getspritesheet("classic")
         self.signal=signal
         self.highlights={"move":("#FFA3FD","#E384FF"),
@@ -163,12 +162,14 @@ class Gui(tk.Canvas):
         x,y=self.localrotate(self.ROTATION,x,y)
         xpos=x*self.TILESIZE
         ypos=y*self.TILESIZE
-        
-        xpos-=self.coords(Piece.image)[0]
-        ypos-=self.coords(Piece.image)[1]
-        if hasattr(Piece,"offset"):
-            xpos+=Piece.offset[0]
-            ypos+=Piece.offset[1]
+        coords=self.coords(Piece.image)
+        if not coords:
+            return
+        xpos-=coords[0]
+        ypos-=coords[1]
+        if hasattr(Piece,"OFFSET"):
+            xpos+=Piece.OFFSET[0]
+            ypos+=Piece.OFFSET[1]
         self.move(Piece.image,xpos,ypos)
     
     def drag_stop(self,event):
@@ -179,16 +180,16 @@ class Gui(tk.Canvas):
         x = (self.coords(widget.image)[0]+size//2)
         y = (self.coords(widget.image)[1]+size//2)
         
-        if hasattr(widget,"offset"):
-            x-=widget.offset[0]
-            y-=widget.offset[1]
+        if hasattr(widget,"OFFSET"):
+            x-=widget.OFFSET[0]
+            y-=widget.OFFSET[1]
         x/=size
         y/=size
         y=int(y)
         x=int(x)
         x,y=self.localrotate(self.ROTATION,x,y,True)
-        if self.automaticreturn:
-            self.draggable.returnpiece()
+        if self.RETURNDELAY>=0:
+            self.after(self.RETURNDELAY, self.draggable.returnpiece)
         self.draggable=None         
         self.removehighlight(highlight="move")
         pos2=vector(x,y)

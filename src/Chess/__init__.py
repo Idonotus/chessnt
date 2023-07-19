@@ -28,12 +28,6 @@ class Game:
     def endturn(self):
         if self.end:
             return
-        endteam=self.logic.endcheck()
-        if endteam:
-            self.teamlose(endteam)
-            return
-        if self.end:
-            return
         self.logic.teamturn=next(self.conductor)
         self.logic.updateallmoves()
     def start(self):        
