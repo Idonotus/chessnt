@@ -1,4 +1,6 @@
 # chessnt
-You know what i like about chess
-I dont
-So i'm making it "better"
+
+You know what I like about chess, I dont
+So I'm making it "better"
+
+a
