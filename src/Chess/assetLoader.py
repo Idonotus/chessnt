@@ -1,6 +1,7 @@
 import json
 from os import path
 boards_dir=path.join(path.dirname(__file__),"Boards")
+sprites_dir=path.join(path.dirname(__file__),"Spritesheets")
 def query(boardname) -> bool:
     board_file=path.join(boards_dir,boardname+".json")
     if not path.exists(board_file):
@@ -29,4 +30,7 @@ def getBoard(boardname) -> dict:
     board_file=path.join(boards_dir,boardname+".json")
     with open(board_file) as f:
         return json.load(f)
-        
+
+def getspritesheet(name) -> dict:
+    with open(path.join(sprites_dir,f"{name}.json")) as f:
+        return json.load(f)

@@ -1,5 +1,5 @@
 import tkinter as tk
-from . import Logic, Graphics, Stateloader, Turns
+from . import Logic, Graphics, Turns, assetLoader
 
 
 pieces={
@@ -68,11 +68,11 @@ class Game:
     
     @staticmethod
     def loadpresetboard(name):
-        d=Stateloader.getBoard(name)
+        d=assetLoader.getBoard(name)
         return Game(d)
 
     def __init__(self,data):
-        if not Stateloader.valid_data(data):
+        if not assetLoader.valid_data(data):
             raise TypeError
         sizedata=data["dim"]
         self.gui=Graphics.Gui.genboard(tk.Tk(),sizedata,data["boarddata"],self.signal)

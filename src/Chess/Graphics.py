@@ -1,9 +1,9 @@
+
 from .vectormath import *
 from .Piece.Sprite import Sprite
 import logging
 import tkinter as tk
-import json
-import os
+from . import assetLoader
 
 
 class Gui(tk.Canvas):
@@ -12,13 +12,16 @@ class Gui(tk.Canvas):
         self.WIDTH=width
         self.HEIGHT=height
         self.TILESIZE=tile
-        with open(os.path.join(os.path.dirname(__file__),"sprites.json")) as f:
-            self.SPRITES=json.load(f)
+        self.RETURNDELAY=0
+        self.ROTATION=0
+        self.AUTOMATICRETURN=True
+        self.SPRITES=assetLoader.getspritesheet("classic")
         self.signal=signal
         self.highlights={"move":("#FFA3FD","#E384FF"),
                         "default":("#fcf803","#fcb603"),
                         "danger":("#E76161","#B04759"),
-                        "normal":("#FFFFFF","#000000"),}
+                        "normal":("#FFFFFF","#000000"),
+                        "temp":("#449966")}
         super().__init__(master,height=(height)*tile,width=(width)*tile)
         self.bind("<Button-1>",self.drag_start)
         self.bind("<B1-Motion>",self.drag_motion)
@@ -26,13 +29,14 @@ class Gui(tk.Canvas):
         self.data=[]
         self.teamcolors={0:"#FF0000",1:"#0000FF",-1:"#444444"}
         self.tiles=[]
-        self.game=None
-        self.automaticreturn=True
-        self.ROTATION=0
         self.draggable=None
-        for x in range(width):
+        self.drawBoard()
+    
+    def drawBoard(self):
+        self.data=[]
+        for x in range(self.WIDTH):
             self.data.append([])
-            for _ in range(height):
+            for _ in range(self.HEIGHT):
                 self.data[x].append(None)
         for x in range(0,self.WIDTH):
             self.tiles.append([])
@@ -41,12 +45,13 @@ class Gui(tk.Canvas):
                 scaledx=px*self.TILESIZE
                 scaledy=py*self.TILESIZE
                 colour=self.highlights["normal"][(x**2+y)%len(self.highlights["normal"])]
-
-
-                rect=self.create_rectangle(scaledx,scaledy,scaledx+tile,scaledy+tile,fill=colour,outline="")
+                rect=self.create_rectangle(scaledx,scaledy,
+                                           scaledx+self.TILESIZE,
+                                           scaledy+self.TILESIZE,
+                                           fill=colour,outline="")
                 self.tag_lower(rect)
                 self.tiles[x].append(rect)
-    
+
     @staticmethod
     def genboard(master,dim,boarddata,signal):
         g=Gui(master=master,width=dim[0],height=dim[1],signal=signal)
@@ -126,7 +131,9 @@ class Gui(tk.Canvas):
                 fill=color[(x+y)%len(color)]
                 self.itemconfigure(tile,fill=fill,tags=(highlight,))
 
-    def highlighttiles(self,tiles,*,color:list=[],highlight=""):
+    def highlighttiles(self,tiles,*,color:list=[],highlight="",name=None):
+        if not name:
+            name=highlight
         if highlight not in self.highlights:
             if color is None or color == []:
                 highlight="default"
@@ -139,7 +146,7 @@ class Gui(tk.Canvas):
             if isinstance(pos,vector):
                 x,y=pos.intcoords()
                 fill=color[(x+y)%len(color)]
-                self.itemconfigure(self.tiles[x][y],fill=fill,tags=(highlight,))
+                self.itemconfigure(self.tiles[x][y],fill=fill,tags=(name,))
 
     def applychanges(self,changes):
         for item in changes:
