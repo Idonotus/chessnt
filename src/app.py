@@ -126,7 +126,7 @@ class mainApp:
         if command["mod"] in self.backproc:
             self.backproc[command["mod"]].handleCommand(command)
         elif command["mod"] == self.curpage.name:
-            self.curpage.handleCommand(command)
+            self.win.after(0,lambda: self.curpage.handleCommand(command))
     def loadBackProc(self,name,obj):
         self.backproc[name]=obj
 

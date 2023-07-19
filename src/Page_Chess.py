@@ -9,6 +9,7 @@ def button(master,name,command):
     return lambda: ttk.Button(master=master,text=name,command=command)
 class ChessPage(ttk.Frame):
     name="Pr-chess"
+
     def __init__(self,master=None,main=None) -> None:
         self.main=main
         if main:
@@ -42,7 +43,7 @@ class ChessPage(ttk.Frame):
         self.game_toggle=self.startbutton()
         self.togauth=False
         self.running=False
-        self.g.automaticreturn=False
+        self.g.RETURNDELAY=0
         self.teamauth={}
 
     def leave(self):
@@ -56,7 +57,6 @@ class ChessPage(ttk.Frame):
 
     def adduser(self,name,auth=False,team=None):
         a=UserData(self.ulist.getmaster(),name,auth=auth,team=team,command=self.teamSetEvent)
-        a.setTeam("None")
         self.teamauth[name]=auth
         self.ulist.insert(a)
     
@@ -97,11 +97,18 @@ class ChessPage(ttk.Frame):
     def handleCommand(self,com):
         match com:
             case {"com":"displaymoves","moves":allavail,**_u}:
+                if "teampiece" in com:
+                    if com["teampiece"]:
+                        highlight="move"
+                    else:
+                        highlight="danger"
+                else:
+                    highlight="move"
                 self.g.removehighlight("move")
                 if not self.g.draggable:
                     return
                 allavail=[vector(p[0],p[1]) for p in allavail]
-                self.g.highlighttiles(allavail,highlight="move")
+                self.g.highlighttiles(allavail,highlight=highlight,name="move")
             case {"com":"teamchanged","name":name,"team":team,**_u}:
                 self.ulist.setTeam(name,team)
             case {"com":"userjoin","user":name,"auth":auth,**_u}:
@@ -122,7 +129,7 @@ class ChessPage(ttk.Frame):
             case {"com":"loadboard","data":d,**_u}:
                 self.g.destroy()
                 self.g=Gui.genboard(master=self,dim=d["dim"],boarddata=d["boarddata"],signal=self.guisig)
-                self.g.automaticreturn=False
+                self.g.RETURNDELAY=1000
                 self.g.grid(column=0,row=0,rowspan=2)
                 if "running" not in d:
                     return
@@ -131,6 +138,7 @@ class ChessPage(ttk.Frame):
                 if d["running"]:
                     self.game_toggle=self.stopbutton()
                 else:
+                    self.g.RETURNDELAY=0
                     self.game_toggle=self.startbutton()
                     self.g.highlightalltiles("default")
                 self.updatetoggle()
@@ -145,7 +153,7 @@ class ChessPage(ttk.Frame):
                 for item in data:
                     self.adduser(*item)
             case {"com":"highlightboard","highlight":highlight,**_u}:
-                self.g.highlightboard(highlight=highlight)
+                self.g.highlightalltiles(highlight=highlight)
             case {"com":"returnpiece","pos":[x,y],**_u}:
                 p=self.g.getpiece(x,y)
                 self.g.placepiece(p,x,y)

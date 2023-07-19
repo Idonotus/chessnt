@@ -191,6 +191,7 @@ class RoomPage(ttk.Frame):
             self.addRoom(item)
     
     def addRoom(self,roomdata):
+        print(roomdata)
         if "private" in roomdata:
             if roomdata["private"]:
                 return

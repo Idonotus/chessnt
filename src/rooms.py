@@ -164,9 +164,9 @@ class ChessRoom(Room):
 
     def endGame(self,msg=""):
         if len(self.teamsleft)==0:
-            msg.replace("%r","Draw")
+            msg=msg.replace("%r","Draw")
         elif len(self.teamsleft)==1:
-            msg.replace("%r",f"Team {list(self.teamsleft)[0]}")
+            msg=msg.replace("%r",f"Team {list(self.teamsleft)[0]} wins")
         c={"com":"endmsg","msg":msg}
         self.broadcast(c)
         self.stopGame()
@@ -230,7 +230,7 @@ class ChessRoom(Room):
                 if self.running:
                     self.stopGame()
                 else:
-                    d=Chess.Stateloader.getBoard(self.boardname)
+                    d=Chess.assetLoader.getBoard(self.boardname)
                     self.startGame(d)
             case {"com":"getauth","action":"gametoggle",**_u}:
                 c={"com":"setauth","action":"gametoggle","mod":self.PAGENAME,"auth":self.userauths[usr.name]>=3}
@@ -253,7 +253,7 @@ class ChessRoom(Room):
             case {"com":"getmoves","piecepos":pos,**_u} if self.running:
                 vpos=vector.fromtuple(pos)
                 r=self.getpossiblemoves(vpos)
-                c={"com":"displaymoves","mod":self.PAGENAME,"moves":r,"pos":pos}
+                c={"com":"displaymoves","mod":self.PAGENAME,"moves":r,"pos":pos,"teampiece":self.AuthMove(usr,vpos)}
                 usr.send(c)
 
     def getpossiblemoves(self,pos):
@@ -272,11 +272,11 @@ class ChessRoom(Room):
 
     def exportBoard(self,):
         if not self.running:
-            d=Chess.Stateloader.getBoard(self.boardname)
+            d=Chess.assetLoader.getBoard(self.boardname)
             d["running"]=self.running
             return d
         d=self.logic.data
-        dup=[b.export() for b in d.values()]
+        dup=[b.export() for b in d.values() if b]
         bd={
             "numteams":len(self.logic.teams),
             "dim":[self.logic.WIDTH,self.logic.HEIGHT],
